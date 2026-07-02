@@ -74,6 +74,7 @@
             flex-direction: column;
             align-items: center;
             gap: 8px;
+            flex-grow: 1; /* Pushes the progress bar to the bottom */
         }
 
         .clues-container p {
@@ -93,6 +94,23 @@
             opacity: 1;
             transform: translateY(0);
         }
+
+        /* NEW: Progress Bar Styling */
+        .progress-wrapper {
+            width: 100%;
+            height: 6px;
+            background-color: #222;
+            border-radius: 4px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #ffcc00;
+            /* Transition dynamically controlled via JavaScript */
+        }
     </style>
 </head>
 <body>
@@ -111,11 +129,16 @@
             <p id="clue-directors"></p> 
             <p id="clue-tagline"></p>
         </div>
+
+        <div class="progress-wrapper">
+            <div id="progress-bar"></div>
+        </div>
     </div>
 
     <script>
         const textDisplay = document.getElementById('text-display');
         const movieThumb = document.getElementById('movie-thumb');
+        const progressBar = document.getElementById('progress-bar'); // Added target for progress bar
         
         const clueElements = {
             year: document.getElementById('clue-year'),
@@ -127,7 +150,7 @@
 
         let allMoviesData = []; 
         let currentMovieIndex = 0;
-        let activeTimeouts = []; // Track all active timers to prevent overlap
+        let activeTimeouts = []; 
         
         const revealAnswerDuration = 5000; 
         const totalUnblurTime = 10000;     
@@ -189,14 +212,24 @@
         }
 
         function resetDisplay() {
-            clearAllTimeouts(); // Kill any timers from previous sequences
+            clearAllTimeouts(); 
 
             textDisplay.textContent = '';
+            
+            // Instantly reset image
             movieThumb.style.transition = 'none';
             movieThumb.style.filter = 'blur(30px)';
             movieThumb.style.opacity = '0';
             movieThumb.src = '';
+
+            // Instantly reset progress bar to full
+            progressBar.style.transition = 'none';
+            progressBar.style.width = '100%';
+            progressBar.style.opacity = '1';
+
+            // Force layout reflow for both elements so instant resets are applied
             void movieThumb.offsetWidth; 
+            void progressBar.offsetWidth;
 
             Object.values(clueElements).forEach(el => {
                 el.textContent = '';
@@ -235,10 +268,15 @@
                 : "Guess the Mystery Movie!";
             textDisplay.textContent = initialRiddle;
             
+            // Image unblur trigger
             movieThumb.src = imagePath;
             movieThumb.style.transition = `filter ${totalUnblurTime}ms linear, opacity 1s ease-in`;
             movieThumb.style.opacity = '1';
             movieThumb.style.filter = 'blur(5px)'; 
+
+            // Progress bar shrinking trigger
+            progressBar.style.transition = `width ${totalUnblurTime}ms linear`;
+            progressBar.style.width = '0%';
 
             const genresString = movieData.genres ? formatArrayClue(movieData.genres, 'tag') : "";
             const directorsString = movieData.directors ? formatArrayClue(movieData.directors, 'tag') : "";
@@ -258,10 +296,15 @@
                 activeTimeouts.push(timeoutId);
             });
             
+            // Answer Reveal execution
             const revealId = setTimeout(() => {
                 movieThumb.style.transition = 'filter 0.3s ease-out';
                 movieThumb.style.filter = 'blur(0px)'; 
                 textDisplay.textContent = (movieData.title || "").trim() || "Unknown Title";
+
+                // Fade out the empty progress bar wrapper nicely
+                progressBar.style.transition = 'opacity 0.3s ease-out';
+                progressBar.style.opacity = '0';
 
                 const nextLoopId = setTimeout(loadNextMovie, revealAnswerDuration);
                 activeTimeouts.push(nextLoopId);
@@ -278,7 +321,6 @@
                 shuffleArray(allMoviesData); 
             }
             
-            // Fix: Store the current movie, then increment immediately BEFORE firing sequence
             const movieToPlay = allMoviesData[currentMovieIndex];
             currentMovieIndex++; 
             
