@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinema Riddle & Unblur Showcase</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #111;
+            color: #fff;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 90%;
+            max-width: 500px;
+            height: 800px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            background-color: #000;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .image-wrapper {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            background-color: #050505;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #movie-thumb {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: blur(30px);
+            transition: filter opacity ease-out;
+            opacity: 0;
+        }
+
+        #text-display {
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+            color: #ffcc00;
+            min-height: 2.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .clues-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clues-container p {
+            font-size: 1.05rem;
+            margin: 0;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            width: 80%;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+
+        .clues-container p.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="image-wrapper">
+            <img id="movie-thumb" src="" alt="Movie Poster">
+        </div>
+
+        <div id="text-display">Loading game library...</div>
+
+        <div class="clues-container">
+            <p id="clue-year"></p>
+            <p id="clue-contentRating"></p>
+            <p id="clue-genres"></p>
+            <p id="clue-directors"></p> 
+            <p id="clue-tagline"></p>
+        </div>
+    </div>
+
+    <script>
+        const textDisplay = document.getElementById('text-display');
+        const movieThumb = document.getElementById('movie-thumb');
+        
+        const clueElements = {
+            year: document.getElementById('clue-year'),
+            contentRating: document.getElementById('clue-contentRating'),
+            genres: document.getElementById('clue-genres'),
+            tagline: document.getElementById('clue-tagline'),
+            directors: document.getElementById('clue-directors')
+        };
+
+        let allMoviesData = []; 
+        let currentMovieIndex = 0;
+        let activeTimeouts = []; // Track all active timers to prevent overlap
+        
+        const revealAnswerDuration = 5000; 
+        const totalUnblurTime = 10000;     
+
+        // 1. Fetch data
+        fetch('all_movies_with_riddles.json')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                allMoviesData = data;
+                
+                allMoviesData.forEach(movie => {
+                    if (movie && typeof movie.thumbFile === 'string') {
+                        movie.thumbFile = sanitizePath(movie.thumbFile);
+                    }
+                });
+
+                if (allMoviesData.length > 0) {
+                    shuffleArray(allMoviesData);
+                    loadNextMovie();
+                } else {
+                    textDisplay.textContent = "Movie data file is empty.";
+                }
+            })
+            .catch(error => {
+                console.error("Error loading JSON data:", error);
+                textDisplay.textContent = "Error: JSON failed to load. Make sure the container server is up.";
+            });
+
+        // 2. Helper Utilities
+        function sanitizePath(path) {
+            return (typeof path === 'string') ? path.replace(/\\/g, "/") : null;
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function formatArrayClue(arr, propertyName = "tag") {
+            if (!arr || !Array.isArray(arr) || arr.length === 0) return "";
+            
+            return arr.map(item => {
+                if (item && typeof item === 'object' && item[propertyName]) return item[propertyName];
+                if (typeof item === 'string') return item;
+                return null;
+            })
+            .filter(item => item !== null && item !== undefined && String(item).toLowerCase() !== 'null' && String(item).trim() !== '') 
+            .join(', ');
+        }
+
+        function clearAllTimeouts() {
+            activeTimeouts.forEach(clearTimeout);
+            activeTimeouts = [];
+        }
+
+        function resetDisplay() {
+            clearAllTimeouts(); // Kill any timers from previous sequences
+
+            textDisplay.textContent = '';
+            movieThumb.style.transition = 'none';
+            movieThumb.style.filter = 'blur(30px)';
+            movieThumb.style.opacity = '0';
+            movieThumb.src = '';
+            void movieThumb.offsetWidth; 
+
+            Object.values(clueElements).forEach(el => {
+                el.textContent = '';
+                el.classList.remove('visible');
+            });
+        }
+
+        function displayClueWithLabel(element, label, value) {
+            const stringValue = (value !== null && value !== undefined) ? String(value).trim() : "";
+            if (element && stringValue !== "" && stringValue !== "null") {
+                let displayValue = stringValue;
+                if (label === "Tagline") displayValue = `"${stringValue}"`;
+                element.textContent = `${label}: ${displayValue}`;
+                element.classList.add('visible');
+            }
+        }
+
+        // 3. Main Gameplay Lifecycle
+        function runMovieSequence(movieData) {
+            if (!movieData) {
+                loadNextMovie(); 
+                return;
+            }
+
+            resetDisplay();
+
+            const imagePath = sanitizePath(movieData.thumbFile);
+            if (!imagePath) {
+                console.warn("Skipping due to missing image path:", movieData.title);
+                loadNextMovie();
+                return;
+            }
+
+            const initialRiddle = movieData.riddle && String(movieData.riddle).trim() !== "" 
+                ? movieData.riddle 
+                : "Guess the Mystery Movie!";
+            textDisplay.textContent = initialRiddle;
+            
+            movieThumb.src = imagePath;
+            movieThumb.style.transition = `filter ${totalUnblurTime}ms linear, opacity 1s ease-in`;
+            movieThumb.style.opacity = '1';
+            movieThumb.style.filter = 'blur(5px)'; 
+
+            const genresString = movieData.genres ? formatArrayClue(movieData.genres, 'tag') : "";
+            const directorsString = movieData.directors ? formatArrayClue(movieData.directors, 'tag') : "";
+
+            const fixedCluesData = [
+                { el: clueElements.year, label: "Year", value: movieData.year, delay: 2000 },
+                { el: clueElements.contentRating, label: "Content Rating", value: movieData.contentRating, delay: 3500 },
+                { el: clueElements.genres, label: "Genres", value: genresString, delay: 5000 },
+                { el: clueElements.directors, label: "Director(s)", value: directorsString, delay: 6500 },
+                { el: clueElements.tagline, label: "Tagline", value: movieData.tagline, delay: 8000 }
+            ];
+
+            fixedCluesData.forEach(clue => {
+                const timeoutId = setTimeout(() => {
+                    displayClueWithLabel(clue.el, clue.label, clue.value);
+                }, clue.delay);
+                activeTimeouts.push(timeoutId);
+            });
+            
+            const revealId = setTimeout(() => {
+                movieThumb.style.transition = 'filter 0.3s ease-out';
+                movieThumb.style.filter = 'blur(0px)'; 
+                textDisplay.textContent = (movieData.title || "").trim() || "Unknown Title";
+
+                const nextLoopId = setTimeout(loadNextMovie, revealAnswerDuration);
+                activeTimeouts.push(nextLoopId);
+            }, totalUnblurTime);
+            
+            activeTimeouts.push(revealId);
+        }
+
+        function loadNextMovie() {
+            if (!allMoviesData || allMoviesData.length === 0) return;
+
+            if (currentMovieIndex >= allMoviesData.length) {
+                currentMovieIndex = 0; 
+                shuffleArray(allMoviesData); 
+            }
+            
+            // Fix: Store the current movie, then increment immediately BEFORE firing sequence
+            const movieToPlay = allMoviesData[currentMovieIndex];
+            currentMovieIndex++; 
+            
+            runMovieSequence(movieToPlay);
+        }
+
+        movieThumb.onerror = function() {
+            console.warn("Failed to load image, skipping:", movieThumb.src);
+            loadNextMovie();
+        };
+    </script>
+</body>
+</html>
