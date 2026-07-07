@@ -238,7 +238,6 @@
         const startGameBtn = document.getElementById('start-game-btn');
         const muteBtn = document.getElementById('mute-btn');
         
-        // Audio Elements
         const themePlayer = document.getElementById('theme-player');
         const bgmPlayer = document.getElementById('bgm-player');
         const sfxCorrect = document.getElementById('sfx-correct');
@@ -248,7 +247,6 @@
         sfxCorrect.volume = 0.6;
         sfxWrong.volume = 0.6;
         
-        // Mute State Management
         let isMuted = false;
         muteBtn.addEventListener('click', () => {
             isMuted = !isMuted;
@@ -270,8 +268,16 @@
             directors: document.getElementById('clue-directors')
         };
 
-        let allMoviesData = []; 
-        let currentMovieIndex = 0;
+        // NEW: Database Deck Separation
+        let moviesList = [];
+        let showsList = [];
+        let movieIndex = 0;
+        let showIndex = 0;
+        
+        // NEW: Pacing Controls
+        const TV_SHOW_FREQUENCY = 7; // Change this to 25 if you want them extremely rare!
+        let totalRoundsPlayed = 1; 
+
         let activeTimeouts = []; 
         let scoreTickerInterval = null; 
         let fadeAudioInterval = null;
@@ -288,6 +294,12 @@
 
         let topScore = 0;
         let topInitials = "---";
+
+        function isTVShow(data) {
+            if (!data) return false;
+            return data.riddle === "Guess this hit TV Show!" || 
+                   (data.runtime && (data.runtime.includes("Episode") || data.runtime.includes("TV Series")));
+        }
 
         function syncLeaderboardFromServer() {
             fetch('/api/leaderboard')
@@ -308,14 +320,22 @@
                 return response.json();
             })
             .then(data => {
-                allMoviesData = data;
-                allMoviesData.forEach(movie => {
-                    if (movie && typeof movie.thumbFile === 'string') movie.thumbFile = sanitizePath(movie.thumbFile);
-                    if (movie && typeof movie.themeAudio === 'string') movie.themeAudio = sanitizePath(movie.themeAudio);
+                data.forEach(item => {
+                    if (item && typeof item.thumbFile === 'string') item.thumbFile = sanitizePath(item.thumbFile);
+                    if (item && typeof item.themeAudio === 'string') item.themeAudio = sanitizePath(item.themeAudio);
+                    
+                    // Physically sort the database into two decks on load
+                    if (isTVShow(item)) {
+                        showsList.push(item);
+                    } else {
+                        moviesList.push(item);
+                    }
                 });
 
-                if (allMoviesData.length > 0) {
-                    shuffleArray(allMoviesData);
+                if (moviesList.length > 0) shuffleArray(moviesList);
+                if (showsList.length > 0) shuffleArray(showsList);
+
+                if (moviesList.length > 0 || showsList.length > 0) {
                     syncLeaderboardFromServer(); 
                 } else {
                     textDisplay.textContent = "Data file is empty.";
@@ -329,6 +349,7 @@
         startGameBtn.addEventListener('click', () => {
             startOverlay.classList.remove('active');
             isSystemActive = true;
+            totalRoundsPlayed = 1; // Reset pacing
             if(bgmPlayer.paused) bgmPlayer.play().catch(e => console.log("BGM Init Blocked:", e));
             loadNextMovie();
         });
@@ -355,21 +376,16 @@
             .join(', ');
         }
 
-        // Feature: TV Show Identifier
-        function isTVShow(data) {
-            if (!data) return false;
-            return data.riddle === "Guess this hit TV Show!" || 
-                   (data.runtime && (data.runtime.includes("Episode") || data.runtime.includes("TV Series")));
-        }
-
-        // Feature: Type-Aware Choice Generator
         function generateMultipleChoices(currentData) {
             let correctTitle = currentData.title || "Unknown Title";
             let options = [correctTitle];
             let currentIsTV = isTVShow(currentData);
 
-            let pool = allMoviesData
-                .filter(m => m && m.title && m.title !== correctTitle && isTVShow(m) === currentIsTV)
+            // Directly pull from the pre-sorted array for better performance
+            let poolSource = currentIsTV ? showsList : moviesList;
+            
+            let pool = poolSource
+                .filter(m => m && m.title && m.title !== correctTitle)
                 .map(m => m.title);
             
             shuffleArray(pool);
@@ -483,6 +499,7 @@
                         } else {
                             score = 0;
                             strikes = 0;
+                            totalRoundsPlayed = 1; // Reset pacing for next player
                             syncLeaderboardFromServer();
                             loadNextMovie();
                         }
@@ -504,6 +521,7 @@
             .then(() => {
                 score = 0;
                 strikes = 0;
+                totalRoundsPlayed = 1; // Reset pacing for next player
                 initialsModal.classList.remove('active');
                 syncLeaderboardFromServer();
                 loadNextMovie();
@@ -607,7 +625,6 @@
             progressBar.style.transition = `width ${totalUnblurTime}ms linear`;
             progressBar.style.width = '0%';
 
-            // Dynamic Audio Handoff
             if (movieData.themeAudio && movieData.themeAudio.trim() !== "") {
                 bgmPlayer.pause();
                 themePlayer.src = movieData.themeAudio;
@@ -671,15 +688,34 @@
             activeTimeouts.push(revealId);
         }
 
+        // NEW: Load logic handles pacing and guaranteed TV show injection
         function loadNextMovie() {
-            if (!allMoviesData || allMoviesData.length === 0) return;
-            if (currentMovieIndex >= allMoviesData.length) {
-                currentMovieIndex = 0; 
-                shuffleArray(allMoviesData); 
+            if (moviesList.length === 0 && showsList.length === 0) return;
+
+            // Check if this round hits our TV frequency multiplier
+            let isTvRound = (totalRoundsPlayed % TV_SHOW_FREQUENCY === 0) && (showsList.length > 0);
+            
+            // Loop arrays if we run out of fresh cards
+            if (isTvRound && showIndex >= showsList.length) {
+                showIndex = 0; 
+                shuffleArray(showsList);
             }
-            const movieToPlay = allMoviesData[currentMovieIndex];
-            currentMovieIndex++; 
-            runMovieSequence(movieToPlay);
+            if (!isTvRound && movieIndex >= moviesList.length) {
+                movieIndex = 0; 
+                shuffleArray(moviesList);
+            }
+
+            let dataToPlay;
+            if (isTvRound || moviesList.length === 0) {
+                dataToPlay = showsList[showIndex];
+                showIndex++;
+            } else {
+                dataToPlay = moviesList[movieIndex];
+                movieIndex++;
+            }
+            
+            totalRoundsPlayed++;
+            runMovieSequence(dataToPlay);
         }
 
         movieThumb.onerror = function() {
