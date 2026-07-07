@@ -340,13 +340,11 @@
         const revealAnswerDuration = 5000; 
         const totalUnblurTime = 10000;     
 
-        // Global server state cache
         let topScore = 0;
         let topInitials = "---";
 
-        // NEW: Pull current global leader from server file storage
         function syncLeaderboardFromServer() {
-            fetch('/api/leaderboard')
+            fetch('http://192.168.68.85:8005/api/leaderboard')
                 .then(res => res.json())
                 .then(data => {
                     topScore = data.score || 0;
@@ -372,7 +370,7 @@
 
                 if (allMoviesData.length > 0) {
                     shuffleArray(allMoviesData);
-                    syncLeaderboardFromServer(); // Initialize score sync
+                    syncLeaderboardFromServer(); 
                     loadNextMovie();
                 } else {
                     textDisplay.textContent = "Movie data file is empty.";
@@ -486,8 +484,7 @@
 
         function checkStrikeOutCondition() {
             if (strikes >= 3) {
-                // Fetch latest file record right before evaluating down a win condition
-                fetch('/api/leaderboard')
+                fetch('http://192.168.68.85:8005/api/leaderboard')
                     .then(res => res.json())
                     .then(latestData => {
                         topScore = latestData.score || 0;
@@ -510,13 +507,11 @@
             return false;
         }
 
-        // NEW: Submit highscore changes back up to permanent host JSON file asynchronously
         submitInitialsBtn.addEventListener('click', () => {
             let initials = initialsInput.value.trim().toUpperCase() || "AAA";
-            
             const payload = { initials: initials, score: score };
 
-            fetch('/api/leaderboard', {
+            fetch('http://192.168.68.85:8005/api/leaderboard', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
