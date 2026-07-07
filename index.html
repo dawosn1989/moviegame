@@ -19,9 +19,9 @@
 
         .game-container {
             position: relative;
-            width: 90%;
+            width: 95%;
             max-width: 500px;
-            height: 800px;
+            height: 850px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
@@ -34,14 +34,27 @@
             box-sizing: border-box;
         }
 
+        .game-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        #score-board { color: #ffcc00; }
+        #strike-board { color: #ff4444; letter-spacing: 2px; }
+
         .image-wrapper {
             position: relative;
             width: 100%;
-            height: 450px;
+            height: 380px;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             background-color: #050505;
             border-radius: 8px;
             overflow: hidden;
@@ -57,15 +70,16 @@
         }
 
         #text-display {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: bold;
             text-align: center;
             margin-bottom: 15px;
             color: #ffcc00;
-            min-height: 2.5em;
+            min-height: 2.2em;
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 100%;
         }
 
         .clues-container {
@@ -73,21 +87,21 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px; /* Slightly tighter gap to fit 7 clues cleanly */
-            flex-grow: 1; 
+            gap: 5px;
+            min-height: 200px;
         }
 
         .clues-container p {
-            font-size: 1.05rem;
+            font-size: 0.95rem;
             margin: 0;
             padding: 4px 12px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 6px;
-            width: 80%;
+            width: 85%;
             text-align: center;
             opacity: 0;
             transform: translateY(10px);
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
         }
 
         .clues-container p.visible {
@@ -95,12 +109,63 @@
             transform: translateY(0);
         }
 
+        .choices-container {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+            min-height: 90px;
+            transition: opacity 0.2s ease;
+        }
+
+        .choice-btn {
+            background-color: #222;
+            color: #fff;
+            border: 2px solid #444;
+            padding: 10px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .choice-btn:hover:not(:disabled) {
+            background-color: #333;
+            border-color: #ffcc00;
+        }
+
+        .choice-btn.correct {
+            background-color: #1b5e20 !important;
+            border-color: #4caf50 !important;
+        }
+
+        .choice-btn.wrong {
+            background-color: #b71c1c !important;
+            border-color: #f44336 !important;
+            opacity: 0.6;
+        }
+
+        .footer-navigation {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+        }
+
         .progress-wrapper {
             width: 100%;
             height: 6px;
             background-color: #222;
             border-radius: 4px;
-            margin-top: 15px;
             overflow: hidden;
         }
 
@@ -109,11 +174,26 @@
             height: 100%;
             background-color: #ffcc00;
         }
+
+        /* NEW: Styled layout for the ticking down points text beneath the bar */
+        #potential-board {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 6px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            transition: opacity 0.2s ease;
+        }
     </style>
 </head>
 <body>
 
     <div class="game-container">
+        <div class="game-header">
+            <div id="score-board">Score: 0</div>
+            <div id="strike-board"></div>
+        </div>
+
         <div class="image-wrapper">
             <img id="movie-thumb" src="" alt="Movie Poster">
         </div>
@@ -123,13 +203,20 @@
         <div class="clues-container">
             <p id="clue-year"></p>
             <p id="clue-contentRating"></p>
-            <p id="clue-runtime"></p> <p id="clue-studio"></p>  <p id="clue-genres"></p>
+            <p id="clue-runtime"></p>
+            <p id="clue-studio"></p> 
+            <p id="clue-genres"></p>
             <p id="clue-directors"></p> 
             <p id="clue-tagline"></p>
         </div>
 
-        <div class="progress-wrapper">
-            <div id="progress-bar"></div>
+        <div id="choices-box" class="choices-container"></div>
+
+        <div class="footer-navigation">
+            <div class="progress-wrapper">
+                <div id="progress-bar"></div>
+            </div>
+            <div id="potential-board">Value: 1000</div>
         </div>
     </div>
 
@@ -137,6 +224,10 @@
         const textDisplay = document.getElementById('text-display');
         const movieThumb = document.getElementById('movie-thumb');
         const progressBar = document.getElementById('progress-bar'); 
+        const choicesBox = document.getElementById('choices-box');
+        const scoreBoard = document.getElementById('score-board');
+        const potentialBoard = document.getElementById('potential-board');
+        const strikeBoard = document.getElementById('strike-board');
         
         const clueElements = {
             year: document.getElementById('clue-year'),
@@ -151,7 +242,14 @@
         let allMoviesData = []; 
         let currentMovieIndex = 0;
         let activeTimeouts = []; 
+        let scoreTickerInterval = null; 
         
+        let score = 0;
+        let strikes = 0;
+        let potentialPoints = 1000;
+        let hasGuessed = false;
+        let currentCluesTimeline = []; 
+
         const revealAnswerDuration = 5000; 
         const totalUnblurTime = 10000;     
 
@@ -171,6 +269,7 @@
 
                 if (allMoviesData.length > 0) {
                     shuffleArray(allMoviesData);
+                    updateStatsDisplay();
                     loadNextMovie();
                 } else {
                     textDisplay.textContent = "Movie data file is empty.";
@@ -204,15 +303,30 @@
             .join(', ');
         }
 
+        function updateStatsDisplay() {
+            scoreBoard.textContent = `Score: ${score}`;
+            potentialBoard.textContent = `Value: ${potentialPoints}`;
+            strikeBoard.textContent = "❌".repeat(strikes);
+        }
+
         function clearAllTimeouts() {
             activeTimeouts.forEach(clearTimeout);
             activeTimeouts = [];
+            if (scoreTickerInterval) {
+                clearInterval(scoreTickerInterval);
+                scoreTickerInterval = null;
+            }
         }
 
         function resetDisplay() {
             clearAllTimeouts(); 
+            hasGuessed = false;
+            potentialPoints = 1000;
+            currentCluesTimeline = [];
 
             textDisplay.textContent = '';
+            choicesBox.innerHTML = ''; 
+            choicesBox.style.opacity = '1';
             
             movieThumb.style.transition = 'none';
             movieThumb.style.filter = 'blur(30px)';
@@ -222,6 +336,7 @@
             progressBar.style.transition = 'none';
             progressBar.style.width = '100%';
             progressBar.style.opacity = '1';
+            potentialBoard.style.opacity = '1';
 
             void movieThumb.offsetWidth; 
             void progressBar.offsetWidth;
@@ -230,6 +345,7 @@
                 el.textContent = '';
                 el.classList.remove('visible');
             });
+            updateStatsDisplay();
         }
 
         function displayClueWithLabel(element, label, value) {
@@ -240,6 +356,85 @@
                 element.textContent = `${label}: ${displayValue}`;
                 element.classList.add('visible');
             }
+        }
+
+        function generateMultipleChoices(correctTitle) {
+            let options = [correctTitle];
+            let pool = allMoviesData
+                .map(m => m.title)
+                .filter(t => t && t !== correctTitle);
+            
+            shuffleArray(pool);
+            
+            for (let i = 0; i < 3; i++) {
+                if (pool[i]) options.push(pool[i]);
+            }
+            
+            shuffleArray(options); 
+            return options;
+        }
+
+        function forceRevealAllClues() {
+            currentCluesTimeline.forEach(clue => {
+                displayClueWithLabel(clue.el, clue.label, clue.value);
+            });
+        }
+
+        function handleGuess(selectedTitle, correctTitle, buttonElements) {
+            if (hasGuessed) return;
+            hasGuessed = true;
+
+            progressBar.style.transition = 'none';
+            progressBar.style.opacity = '0';
+            potentialBoard.style.opacity = '0';
+
+            if (scoreTickerInterval) {
+                clearInterval(scoreTickerInterval);
+                scoreTickerInterval = null;
+            }
+
+            buttonElements.forEach(btn => btn.disabled = true);
+            forceRevealAllClues(); 
+
+            if (selectedTitle === correctTitle) {
+                score += potentialPoints; 
+                buttonElements.forEach(btn => {
+                    if (btn.textContent === correctTitle) btn.classList.add('correct');
+                });
+            } else {
+                strikes += 1;
+                potentialPoints = 0; 
+                buttonElements.forEach(btn => {
+                    if (btn.textContent === selectedTitle) btn.classList.add('wrong');
+                    if (btn.textContent === correctTitle) btn.classList.add('correct');
+                });
+
+                if (strikes >= 3) {
+                    score = 0;
+                    strikes = 0;
+                }
+            }
+
+            updateStatsDisplay();
+            activeTimeouts.forEach(clearTimeout);
+
+            const briefPauseId = setTimeout(() => {
+                choicesBox.style.opacity = '0';
+                revealMoviePoster(correctTitle);
+            }, 1500);
+            activeTimeouts.push(briefPauseId);
+        }
+
+        function revealMoviePoster(correctTitle) {
+            choicesBox.innerHTML = ''; 
+            movieThumb.style.transition = 'filter 0.3s ease-out';
+            movieThumb.style.filter = 'blur(0px)'; 
+            textDisplay.textContent = correctTitle;
+            potentialPoints = 0;
+            updateStatsDisplay();
+
+            const nextLoopId = setTimeout(loadNextMovie, revealAnswerDuration);
+            activeTimeouts.push(nextLoopId);
         }
 
         function runMovieSequence(movieData) {
@@ -257,6 +452,19 @@
                 return;
             }
 
+            const correctTitle = movieData.title || "Unknown Title";
+            const choices = generateMultipleChoices(correctTitle);
+            let btnElements = [];
+
+            choices.forEach(choiceText => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.textContent = choiceText;
+                btn.addEventListener('click', () => handleGuess(choiceText, correctTitle, btnElements));
+                choicesBox.appendChild(btn);
+                btnElements.push(btn);
+            });
+
             const initialRiddle = movieData.riddle && String(movieData.riddle).trim() !== "" 
                 ? movieData.riddle 
                 : "Guess the Mystery Movie!";
@@ -270,11 +478,21 @@
             progressBar.style.transition = `width ${totalUnblurTime}ms linear`;
             progressBar.style.width = '0%';
 
+            const tickRate = 50; 
+            const totalTicks = totalUnblurTime / tickRate; 
+            const pointsPerTick = 1000 / totalTicks; 
+
+            scoreTickerInterval = setInterval(() => {
+                if (potentialPoints > 0) {
+                    potentialPoints = Math.max(0, Math.round(potentialPoints - pointsPerTick));
+                    potentialBoard.textContent = `Value: ${potentialPoints}`;
+                }
+            }, tickRate);
+
             const genresString = movieData.genres ? formatArrayClue(movieData.genres, 'tag') : "";
             const directorsString = movieData.directors ? formatArrayClue(movieData.directors, 'tag') : "";
 
-            // Accelerated timeline to fit all 7 clues gracefully
-            const fixedCluesData = [
+            currentCluesTimeline = [
                 { el: clueElements.year, label: "Year", value: movieData.year, delay: 1500 },
                 { el: clueElements.contentRating, label: "Content Rating", value: movieData.contentRating, delay: 2500 },
                 { el: clueElements.runtime, label: "Runtime", value: movieData.runtime, delay: 3500 },
@@ -284,7 +502,7 @@
                 { el: clueElements.tagline, label: "Tagline", value: movieData.tagline, delay: 7500 }
             ];
 
-            fixedCluesData.forEach(clue => {
+            currentCluesTimeline.forEach(clue => {
                 const timeoutId = setTimeout(() => {
                     displayClueWithLabel(clue.el, clue.label, clue.value);
                 }, clue.delay);
@@ -292,15 +510,16 @@
             });
             
             const revealId = setTimeout(() => {
-                movieThumb.style.transition = 'filter 0.3s ease-out';
-                movieThumb.style.filter = 'blur(0px)'; 
-                textDisplay.textContent = (movieData.title || "").trim() || "Unknown Title";
-
-                progressBar.style.transition = 'opacity 0.3s ease-out';
-                progressBar.style.opacity = '0';
-
-                const nextLoopId = setTimeout(loadNextMovie, revealAnswerDuration);
-                activeTimeouts.push(nextLoopId);
+                if (!hasGuessed) {
+                    hasGuessed = true;
+                    potentialPoints = 0;
+                    progressBar.style.transition = 'opacity 0.3s ease-out';
+                    progressBar.style.opacity = '0';
+                    potentialBoard.style.opacity = '0';
+                    choicesBox.style.opacity = '0';
+                    forceRevealAllClues();
+                    revealMoviePoster(correctTitle);
+                }
             }, totalUnblurTime);
             
             activeTimeouts.push(revealId);
