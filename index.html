@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinema Riddle & Unblur Showcase</title>
+    <title>Cinema Riddle Arcade</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -44,31 +44,14 @@
             font-weight: bold;
         }
 
-        .leaderboard-link {
-            color: #00e676;
-            text-decoration: none;
-            font-size: 1rem;
-        }
-        
-        .leaderboard-link:hover {
-            text-decoration: underline;
-        }
+        .leaderboard-link { color: #00e676; text-decoration: none; font-size: 1rem; }
+        .leaderboard-link:hover { text-decoration: underline; }
 
-        #score-container {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
+        #score-container { display: flex; flex-direction: column; gap: 2px; }
         #score-board { color: #ffcc00; }
         #potential-board { font-size: 0.85rem; color: #aaa; font-weight: normal; }
         
-        #leaderboard-container {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 2px;
-        }
+        #leaderboard-container { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
         #strike-board { color: #ff4444; letter-spacing: 2px; font-size: 1.1rem; }
 
         .image-wrapper {
@@ -116,157 +99,75 @@
         }
 
         .clues-container p {
-            font-size: 0.95rem;
-            margin: 0;
-            padding: 4px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 6px;
-            width: 85%;
-            text-align: center;
-            opacity: 0;
+            font-size: 0.95rem; margin: 0; padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.05); border-radius: 6px;
+            width: 85%; text-align: center; opacity: 0;
             transform: translateY(10px);
             transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
         }
-
-        .clues-container p.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        .clues-container p.visible { opacity: 1; transform: translateY(0); }
 
         .choices-container {
-            width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
-            min-height: 90px;
-            transition: opacity 0.2s ease;
+            width: 100%; display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px; margin-top: 15px; min-height: 90px; transition: opacity 0.2s ease;
         }
 
         .choice-btn {
-            background-color: #222;
-            color: #fff;
-            border: 2px solid #444;
-            padding: 10px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            background-color: #222; color: #fff; border: 2px solid #444;
+            padding: 10px; font-size: 0.9rem; font-weight: bold; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s ease; text-align: center;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
+        .choice-btn:hover:not(:disabled) { background-color: #333; border-color: #ffcc00; }
+        .choice-btn.correct { background-color: #1b5e20 !important; border-color: #4caf50 !important; }
+        .choice-btn.wrong { background-color: #b71c1c !important; border-color: #f44336 !important; opacity: 0.6; }
 
-        .choice-btn:hover:not(:disabled) {
-            background-color: #333;
-            border-color: #ffcc00;
-        }
-
-        .choice-btn.correct {
-            background-color: #1b5e20 !important;
-            border-color: #4caf50 !important;
-        }
-
-        .choice-btn.wrong {
-            background-color: #b71c1c !important;
-            border-color: #f44336 !important;
-            opacity: 0.6;
-        }
-
-        .footer-navigation {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 15px;
-        }
-
-        .progress-wrapper {
-            width: 100%;
-            height: 6px;
-            background-color: #222;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        #progress-bar {
-            width: 100%;
-            height: 100%;
-            background-color: #ffcc00;
-        }
-
-        #potential-board {
-            font-size: 0.9rem;
-            color: #aaa;
-            margin-top: 6px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            transition: opacity 0.2s ease;
-        }
+        .footer-navigation { width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 15px; }
+        .progress-wrapper { width: 100%; height: 6px; background-color: #222; border-radius: 4px; overflow: hidden; }
+        #progress-bar { width: 100%; height: 100%; background-color: #ffcc00; }
+        #potential-board { font-size: 0.9rem; color: #aaa; margin-top: 6px; font-weight: bold; letter-spacing: 0.5px; transition: opacity 0.2s ease; }
 
         .modal-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center;
+            z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
         .modal-content {
-            background: #222;
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            border: 2px solid #ffcc00;
-            box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+            background: #222; padding: 30px; border-radius: 12px; text-align: center;
+            border: 2px solid #ffcc00; box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
         }
-        .modal-content h2 { margin-top: 0; color: #ffcc00; }
+        .modal-content h2 { margin-top: 0; color: #ffcc00; letter-spacing: 2px;}
         .modal-content input {
-            background: #111;
-            border: 2px solid #444;
-            color: #fff;
-            font-size: 2rem;
-            text-align: center;
-            width: 140px;
-            padding: 5px;
-            border-radius: 6px;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            margin: 15px 0;
+            background: #111; border: 2px solid #444; color: #fff; font-size: 2rem;
+            text-align: center; width: 140px; padding: 5px; border-radius: 6px; text-transform: uppercase; letter-spacing: 4px; margin: 15px 0;
         }
         .modal-content input:focus { border-color: #ffcc00; outline: none; }
         .modal-content button {
-            background: #ffcc00;
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
+            background: #ffcc00; color: #000; border: none; padding: 10px 20px;
+            font-size: 1rem; font-weight: bold; border-radius: 6px; cursor: pointer;
         }
+        
+        #start-overlay { z-index: 100; background: #000; }
     </style>
 </head>
 <body>
 
+    <audio id="bgm-player" loop src="bgm.mp3"></audio>
     <audio id="theme-player" loop></audio>
+    <audio id="sfx-correct" src="correct.mp3"></audio>
+    <audio id="sfx-wrong" src="wrong.mp3"></audio>
 
     <div class="game-container">
+        
+        <div id="start-overlay" class="modal-overlay active">
+            <div class="modal-content">
+                <h2>CINEMA ARCADE</h2>
+                <p style="color: #aaa; margin-bottom: 25px;">Ready to play?</p>
+                <button id="start-game-btn">INSERT COIN</button>
+            </div>
+        </div>
+
         <div id="initials-modal" class="modal-overlay">
             <div class="modal-content">
                 <h2>NEW HIGH SCORE!</h2>
@@ -291,7 +192,7 @@
             <img id="movie-thumb" src="" alt="Movie Poster">
         </div>
 
-        <div id="text-display">Loading game library...</div>
+        <div id="text-display">Waiting to start...</div>
 
         <div class="clues-container">
             <p id="clue-year"></p>
@@ -326,8 +227,19 @@
         const initialsInput = document.getElementById('initials-input');
         const modalScoreText = document.getElementById('modal-score-text');
         const submitInitialsBtn = document.getElementById('submit-initials-btn');
-        const themePlayer = document.getElementById('theme-player');
+        const startOverlay = document.getElementById('start-overlay');
+        const startGameBtn = document.getElementById('start-game-btn');
         
+        // Audio Elements
+        const themePlayer = document.getElementById('theme-player');
+        const bgmPlayer = document.getElementById('bgm-player');
+        const sfxCorrect = document.getElementById('sfx-correct');
+        const sfxWrong = document.getElementById('sfx-wrong');
+        
+        bgmPlayer.volume = 0.15; // Keep BGM subtle
+        sfxCorrect.volume = 0.6;
+        sfxWrong.volume = 0.6;
+
         const clueElements = {
             year: document.getElementById('clue-year'),
             contentRating: document.getElementById('clue-contentRating'),
@@ -348,6 +260,7 @@
         let strikes = 0;
         let potentialPoints = 1000;
         let hasGuessed = false;
+        let isSystemActive = false;
         let currentCluesTimeline = []; 
 
         const revealAnswerDuration = 5000; 
@@ -360,7 +273,6 @@
             fetch('/api/leaderboard')
                 .then(res => res.json())
                 .then(data => {
-                    // Read index 0 to show the overall champion in the game header banner
                     if (Array.isArray(data) && data.length > 0) {
                         topScore = data[0].score || 0;
                         topInitials = data[0].initials || "---";
@@ -385,7 +297,6 @@
                 if (allMoviesData.length > 0) {
                     shuffleArray(allMoviesData);
                     syncLeaderboardFromServer(); 
-                    loadNextMovie();
                 } else {
                     textDisplay.textContent = "Data file is empty.";
                 }
@@ -394,6 +305,13 @@
                 console.error("Error loading JSON data:", error);
                 textDisplay.textContent = "Error: JSON failed to load.";
             });
+
+        startGameBtn.addEventListener('click', () => {
+            startOverlay.classList.remove('active');
+            isSystemActive = true;
+            if(bgmPlayer.paused) bgmPlayer.play().catch(e => console.log("BGM Init Blocked:", e));
+            loadNextMovie();
+        });
 
         function sanitizePath(path) {
             return (typeof path === 'string') ? path.replace(/\\/g, "/") : null;
@@ -417,7 +335,6 @@
             .join(', ');
         }
 
-        // Handles smooth logarithmic fade outs over ~1.5 seconds instead of raw pops
         function fadeOutThemeAudio() {
             if (fadeAudioInterval) clearInterval(fadeAudioInterval);
             if (themePlayer.paused) return;
@@ -429,6 +346,7 @@
                     clearInterval(fadeAudioInterval);
                     themePlayer.pause();
                     themePlayer.src = "";
+                    if (isSystemActive && bgmPlayer.paused) bgmPlayer.play(); // Bring back BGM
                 }
             }, 50);
         }
@@ -437,6 +355,7 @@
             if (fadeAudioInterval) clearInterval(fadeAudioInterval);
             themePlayer.pause();
             themePlayer.src = "";
+            if (isSystemActive && bgmPlayer.paused) bgmPlayer.play();
         }
 
         function updateStatsDisplay() {
@@ -498,14 +417,9 @@
 
         function generateMultipleChoices(correctTitle) {
             let options = [correctTitle];
-            let pool = allMoviesData
-                .map(m => m.title)
-                .filter(t => t && t !== correctTitle);
-            
+            let pool = allMoviesData.map(m => m.title).filter(t => t && t !== correctTitle);
             shuffleArray(pool);
-            for (let i = 0; i < 3; i++) {
-                if (pool[i]) options.push(pool[i]);
-            }
+            for (let i = 0; i < 3; i++) { if (pool[i]) options.push(pool[i]); }
             shuffleArray(options); 
             return options;
         }
@@ -522,8 +436,6 @@
                     .then(res => res.json())
                     .then(latestData => {
                         const scoresList = Array.isArray(latestData) ? latestData : [];
-                        
-                        // Qualify if table has free space OR score beats the 3rd place score
                         const qualifiesForLeaderboard = scoresList.length < 3 || score > (scoresList[2]?.score || 0);
 
                         if (qualifiesForLeaderboard) {
@@ -570,24 +482,21 @@
             if (hasGuessed) return;
             hasGuessed = true;
 
-            fadeOutThemeAudio(); // Smooth audio handoff on choice triggers
+            fadeOutThemeAudio(); 
             progressBar.style.transition = 'none';
             progressBar.style.opacity = '0';
             potentialBoard.style.opacity = '0';
 
-            if (scoreTickerInterval) {
-                clearInterval(scoreTickerInterval);
-                scoreTickerInterval = null;
-            }
+            if (scoreTickerInterval) { clearInterval(scoreTickerInterval); scoreTickerInterval = null; }
 
             buttonElements.forEach(btn => btn.disabled = true);
             forceRevealAllClues(); 
 
             if (selectedTitle === correctTitle) {
+                sfxCorrect.currentTime = 0;
+                sfxCorrect.play();
                 score += potentialPoints; 
-                buttonElements.forEach(btn => {
-                    if (btn.textContent === correctTitle) btn.classList.add('correct');
-                });
+                buttonElements.forEach(btn => { if (btn.textContent === correctTitle) btn.classList.add('correct'); });
                 
                 updateStatsDisplay();
                 activeTimeouts.forEach(clearTimeout);
@@ -599,6 +508,8 @@
                 activeTimeouts.push(briefPauseId);
 
             } else {
+                sfxWrong.currentTime = 0;
+                sfxWrong.play();
                 strikes += 1;
                 potentialPoints = 0; 
                 buttonElements.forEach(btn => {
@@ -611,9 +522,7 @@
 
                 const briefPauseId = setTimeout(() => {
                     choicesBox.style.opacity = '0';
-                    if (!checkStrikeOutCondition()) {
-                        revealMoviePoster(correctTitle);
-                    }
+                    if (!checkStrikeOutCondition()) revealMoviePoster(correctTitle);
                 }, 1500);
                 activeTimeouts.push(briefPauseId);
             }
@@ -632,19 +541,11 @@
         }
 
         function runMovieSequence(movieData) {
-            if (!movieData) {
-                loadNextMovie(); 
-                return;
-            }
-
+            if (!movieData) { loadNextMovie(); return; }
             resetDisplay();
 
             const imagePath = sanitizePath(movieData.thumbFile);
-            if (!imagePath) {
-                console.warn("Skipping due to missing image path:", movieData.title);
-                loadNextMovie();
-                return;
-            }
+            if (!imagePath) { console.warn("Skipping asset:", movieData.title); loadNextMovie(); return; }
 
             const correctTitle = movieData.title || "Unknown Title";
             const choices = generateMultipleChoices(correctTitle);
@@ -659,10 +560,7 @@
                 btnElements.push(btn);
             });
 
-            const initialRiddle = movieData.riddle && String(movieData.riddle).trim() !== "" 
-                ? movieData.riddle 
-                : "Guess the Mystery Movie!";
-            textDisplay.textContent = initialRiddle;
+            textDisplay.textContent = (movieData.riddle && String(movieData.riddle).trim() !== "") ? movieData.riddle : "Guess the Mystery Movie!";
             
             movieThumb.src = imagePath;
             movieThumb.style.transition = `filter ${totalUnblurTime}ms linear, opacity 1s ease-in`;
@@ -672,11 +570,14 @@
             progressBar.style.transition = `width ${totalUnblurTime}ms linear`;
             progressBar.style.width = '0%';
 
-            // Audio Activation Block
+            // Dynamic Audio Handoff
             if (movieData.themeAudio && movieData.themeAudio.trim() !== "") {
+                bgmPlayer.pause();
                 themePlayer.src = movieData.themeAudio;
                 themePlayer.volume = 0.4;
-                themePlayer.play().catch(e => console.log("Autoplay waiting for click trigger context:", e));
+                themePlayer.play().catch(e => console.log("Theme Autoplay blocked:", e));
+            } else {
+                if(bgmPlayer.paused && isSystemActive) bgmPlayer.play().catch(e => console.log("BGM blocked:", e));
             }
 
             const tickRate = 50; 
@@ -704,9 +605,7 @@
             ];
 
             currentCluesTimeline.forEach(clue => {
-                const timeoutId = setTimeout(() => {
-                    displayClueWithLabel(clue.el, clue.label, clue.value);
-                }, clue.delay);
+                const timeoutId = setTimeout(() => { displayClueWithLabel(clue.el, clue.label, clue.value); }, clue.delay);
                 activeTimeouts.push(timeoutId);
             });
             
@@ -715,7 +614,10 @@
                     hasGuessed = true;
                     potentialPoints = 0;
                     strikes += 1; 
-                    fadeOutThemeAudio(); // Smooth fade layout on penalty timeouts
+                    
+                    sfxWrong.currentTime = 0;
+                    sfxWrong.play();
+                    fadeOutThemeAudio(); 
                     
                     progressBar.style.transition = 'opacity 0.3s ease-out';
                     progressBar.style.opacity = '0';
@@ -725,9 +627,7 @@
                     forceRevealAllClues();
                     updateStatsDisplay();
 
-                    if (!checkStrikeOutCondition()) {
-                        revealMoviePoster(correctTitle);
-                    }
+                    if (!checkStrikeOutCondition()) revealMoviePoster(correctTitle);
                 }
             }, totalUnblurTime);
             
@@ -746,7 +646,7 @@
         }
 
         movieThumb.onerror = function() {
-            console.warn("Failed loading target source canvas framework, skipping asset:", movieThumb.src);
+            console.warn("Skipping broken asset:", movieThumb.src);
             loadNextMovie();
         };
     </script>

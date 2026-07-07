@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  cinema-riddle:
+    build: .
+    container_name: cinema-riddle
+    ports:
+      - "8005:8005"
+    volumes:
+      # This bind mount maps your host directory directly to the container.
+      # It ensures leaderboard.json updates are saved permanently to your Pi,
+      # and any git pulls you do are instantly reflected inside the container.
+      - .:/app
+    restart: unless-stopped
