@@ -38,14 +38,29 @@
             width: 100%;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 10px;
             font-size: 1.1rem;
             font-weight: bold;
         }
 
+        #score-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
         #score-board { color: #ffcc00; }
-        #strike-board { color: #ff4444; letter-spacing: 2px; }
+        #potential-board { font-size: 0.85rem; color: #aaa; font-weight: normal; }
+        
+        #leaderboard-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        #top-score-board { color: #00e676; font-size: 1rem; }
+        #strike-board { color: #ff4444; letter-spacing: 2px; font-size: 1.1rem; }
 
         .image-wrapper {
             position: relative;
@@ -175,7 +190,6 @@
             background-color: #ffcc00;
         }
 
-        /* NEW: Styled layout for the ticking down points text beneath the bar */
         #potential-board {
             font-size: 0.9rem;
             color: #aaa;
@@ -184,14 +198,83 @@
             letter-spacing: 0.5px;
             transition: opacity 0.2s ease;
         }
+
+        /* NEW: Initials Overlay Modal Overlay */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: #222;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #ffcc00;
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+        }
+        .modal-content h2 { margin-top: 0; color: #ffcc00; }
+        .modal-content input {
+            background: #111;
+            border: 2px solid #444;
+            color: #fff;
+            font-size: 2rem;
+            text-align: center;
+            width: 140px;
+            padding: 5px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin: 15px 0;
+        }
+        .modal-content input:focus { border-color: #ffcc00; outline: none; }
+        .modal-content button {
+            background: #ffcc00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
     <div class="game-container">
+        <div id="initials-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h2>NEW HIGH SCORE!</h2>
+                <div id="modal-score-text">Score: 0</div>
+                <input type="text" id="initials-input" maxlength="3" placeholder="AAA" autocomplete="off">
+                <br>
+                <button id="submit-initials-btn">SAVE RECORD</button>
+            </div>
+        </div>
+
         <div class="game-header">
-            <div id="score-board">Score: 0</div>
-            <div id="strike-board"></div>
+            <div id="score-container">
+                <div id="score-board">Score: 0</div>
+            </div>
+            <div id="leaderboard-container">
+                <div id="top-score-board">Top: --- 0</div>
+                <div id="strike-board"></div>
+            </div>
         </div>
 
         <div class="image-wrapper">
@@ -228,6 +311,11 @@
         const scoreBoard = document.getElementById('score-board');
         const potentialBoard = document.getElementById('potential-board');
         const strikeBoard = document.getElementById('strike-board');
+        const topScoreBoard = document.getElementById('top-score-board');
+        const initialsModal = document.getElementById('initials-modal');
+        const initialsInput = document.getElementById('initials-input');
+        const modalScoreText = document.getElementById('modal-score-text');
+        const submitInitialsBtn = document.getElementById('submit-initials-btn');
         
         const clueElements = {
             year: document.getElementById('clue-year'),
@@ -252,6 +340,10 @@
 
         const revealAnswerDuration = 5000; 
         const totalUnblurTime = 10000;     
+
+        // Load Leaderboard from storage at startup
+        let topScore = parseInt(localStorage.getItem('cinema_top_score')) || 0;
+        let topInitials = localStorage.getItem('cinema_top_initials') || "---";
 
         fetch('all_movies_with_riddles.json')
             .then(response => {
@@ -307,6 +399,7 @@
             scoreBoard.textContent = `Score: ${score}`;
             potentialBoard.textContent = `Value: ${potentialPoints}`;
             strikeBoard.textContent = "❌".repeat(strikes);
+            topScoreBoard.textContent = `Top: ${topInitials} ${topScore}`;
         }
 
         function clearAllTimeouts() {
@@ -380,6 +473,40 @@
             });
         }
 
+        // Check if the run has hit a game over state
+        function checkStrikeOutCondition() {
+            if (strikes >= 3) {
+                if (score > topScore) {
+                    modalScoreText.textContent = `Final Score: ${score}`;
+                    initialsInput.value = '';
+                    initialsModal.classList.add('active');
+                    initialsInput.focus();
+                } else {
+                    score = 0;
+                    strikes = 0;
+                    updateStatsDisplay();
+                    loadNextMovie();
+                }
+                return true; 
+            }
+            return false;
+        }
+
+        submitInitialsBtn.addEventListener('click', () => {
+            let initials = initialsInput.value.trim().toUpperCase() || "AAA";
+            topScore = score;
+            topInitials = initials;
+            
+            localStorage.setItem('cinema_top_score', topScore);
+            localStorage.setItem('cinema_top_initials', topInitials);
+            
+            score = 0;
+            strikes = 0;
+            initialsModal.classList.remove('active');
+            updateStatsDisplay();
+            loadNextMovie();
+        });
+
         function handleGuess(selectedTitle, correctTitle, buttonElements) {
             if (hasGuessed) return;
             hasGuessed = true;
@@ -401,6 +528,16 @@
                 buttonElements.forEach(btn => {
                     if (btn.textContent === correctTitle) btn.classList.add('correct');
                 });
+                
+                updateStatsDisplay();
+                activeTimeouts.forEach(clearTimeout);
+
+                const briefPauseId = setTimeout(() => {
+                    choicesBox.style.opacity = '0';
+                    revealMoviePoster(correctTitle);
+                }, 1500);
+                activeTimeouts.push(briefPauseId);
+
             } else {
                 strikes += 1;
                 potentialPoints = 0; 
@@ -409,20 +546,18 @@
                     if (btn.textContent === correctTitle) btn.classList.add('correct');
                 });
 
-                if (strikes >= 3) {
-                    score = 0;
-                    strikes = 0;
-                }
+                updateStatsDisplay();
+                activeTimeouts.forEach(clearTimeout);
+
+                const briefPauseId = setTimeout(() => {
+                    choicesBox.style.opacity = '0';
+                    // Check if game over modal needs to interrupt the loop execution
+                    if (!checkStrikeOutCondition()) {
+                        revealMoviePoster(correctTitle);
+                    }
+                }, 1500);
+                activeTimeouts.push(briefPauseId);
             }
-
-            updateStatsDisplay();
-            activeTimeouts.forEach(clearTimeout);
-
-            const briefPauseId = setTimeout(() => {
-                choicesBox.style.opacity = '0';
-                revealMoviePoster(correctTitle);
-            }, 1500);
-            activeTimeouts.push(briefPauseId);
         }
 
         function revealMoviePoster(correctTitle) {
@@ -509,16 +644,24 @@
                 activeTimeouts.push(timeoutId);
             });
             
+            // Timeout Execution - PENALIZES PLAYER WITH A STRIKE IF UNANSWERED
             const revealId = setTimeout(() => {
                 if (!hasGuessed) {
                     hasGuessed = true;
                     potentialPoints = 0;
+                    strikes += 1; // Award strike on non-response timeout
+                    
                     progressBar.style.transition = 'opacity 0.3s ease-out';
                     progressBar.style.opacity = '0';
                     potentialBoard.style.opacity = '0';
                     choicesBox.style.opacity = '0';
-                    forceRevealAllClues();
-                    revealMoviePoster(correctTitle);
+                    
+                    forceRevealAllAllClues = forceRevealAllClues();
+                    updateStatsDisplay();
+
+                    if (!checkStrikeOutCondition()) {
+                        revealMoviePoster(correctTitle);
+                    }
                 }
             }, totalUnblurTime);
             
