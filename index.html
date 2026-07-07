@@ -53,6 +53,12 @@
         
         #leaderboard-container { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
         #strike-board { color: #ff4444; letter-spacing: 2px; font-size: 1.1rem; }
+        
+        #mute-btn {
+            background: none; border: none; color: #ffcc00; font-size: 1.2rem; 
+            cursor: pointer; padding: 5px 0 0 0; opacity: 0.7; transition: opacity 0.2s;
+        }
+        #mute-btn:hover { opacity: 1; }
 
         .image-wrapper {
             position: relative;
@@ -185,6 +191,7 @@
             <div id="leaderboard-container">
                 <div id="top-score-board"><a href="/leaderboard" target="_blank" class="leaderboard-link">Top: Loading...</a></div>
                 <div id="strike-board"></div>
+                <button id="mute-btn" title="Toggle Audio">🔊</button>
             </div>
         </div>
 
@@ -229,6 +236,7 @@
         const submitInitialsBtn = document.getElementById('submit-initials-btn');
         const startOverlay = document.getElementById('start-overlay');
         const startGameBtn = document.getElementById('start-game-btn');
+        const muteBtn = document.getElementById('mute-btn');
         
         // Audio Elements
         const themePlayer = document.getElementById('theme-player');
@@ -236,9 +244,21 @@
         const sfxCorrect = document.getElementById('sfx-correct');
         const sfxWrong = document.getElementById('sfx-wrong');
         
-        bgmPlayer.volume = 0.15; // Keep BGM subtle
+        bgmPlayer.volume = 0.15;
         sfxCorrect.volume = 0.6;
         sfxWrong.volume = 0.6;
+        
+        // Mute State Management
+        let isMuted = false;
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            muteBtn.textContent = isMuted ? '🔇' : '🔊';
+            
+            bgmPlayer.muted = isMuted;
+            themePlayer.muted = isMuted;
+            sfxCorrect.muted = isMuted;
+            sfxWrong.muted = isMuted;
+        });
 
         const clueElements = {
             year: document.getElementById('clue-year'),
@@ -335,6 +355,32 @@
             .join(', ');
         }
 
+        // Feature: TV Show Identifier
+        function isTVShow(data) {
+            if (!data) return false;
+            return data.riddle === "Guess this hit TV Show!" || 
+                   (data.runtime && (data.runtime.includes("Episode") || data.runtime.includes("TV Series")));
+        }
+
+        // Feature: Type-Aware Choice Generator
+        function generateMultipleChoices(currentData) {
+            let correctTitle = currentData.title || "Unknown Title";
+            let options = [correctTitle];
+            let currentIsTV = isTVShow(currentData);
+
+            let pool = allMoviesData
+                .filter(m => m && m.title && m.title !== correctTitle && isTVShow(m) === currentIsTV)
+                .map(m => m.title);
+            
+            shuffleArray(pool);
+            for (let i = 0; i < 3; i++) { 
+                if (pool[i]) options.push(pool[i]); 
+            }
+            
+            shuffleArray(options); 
+            return options;
+        }
+
         function fadeOutThemeAudio() {
             if (fadeAudioInterval) clearInterval(fadeAudioInterval);
             if (themePlayer.paused) return;
@@ -346,7 +392,7 @@
                     clearInterval(fadeAudioInterval);
                     themePlayer.pause();
                     themePlayer.src = "";
-                    if (isSystemActive && bgmPlayer.paused) bgmPlayer.play(); // Bring back BGM
+                    if (isSystemActive && bgmPlayer.paused) bgmPlayer.play(); 
                 }
             }, 50);
         }
@@ -413,15 +459,6 @@
                 element.textContent = `${label}: ${displayValue}`;
                 element.classList.add('visible');
             }
-        }
-
-        function generateMultipleChoices(correctTitle) {
-            let options = [correctTitle];
-            let pool = allMoviesData.map(m => m.title).filter(t => t && t !== correctTitle);
-            shuffleArray(pool);
-            for (let i = 0; i < 3; i++) { if (pool[i]) options.push(pool[i]); }
-            shuffleArray(options); 
-            return options;
         }
 
         function forceRevealAllClues() {
@@ -548,7 +585,7 @@
             if (!imagePath) { console.warn("Skipping asset:", movieData.title); loadNextMovie(); return; }
 
             const correctTitle = movieData.title || "Unknown Title";
-            const choices = generateMultipleChoices(correctTitle);
+            const choices = generateMultipleChoices(movieData);
             let btnElements = [];
 
             choices.forEach(choiceText => {
