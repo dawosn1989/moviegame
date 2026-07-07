@@ -199,7 +199,6 @@
             transition: opacity 0.2s ease;
         }
 
-        /* NEW: Initials Overlay Modal Overlay */
         .modal-overlay {
             position: absolute;
             top: 0;
@@ -272,7 +271,7 @@
                 <div id="score-board">Score: 0</div>
             </div>
             <div id="leaderboard-container">
-                <div id="top-score-board">Top: --- 0</div>
+                <div id="top-score-board">Top: Loading...</div>
                 <div id="strike-board"></div>
             </div>
         </div>
@@ -341,9 +340,21 @@
         const revealAnswerDuration = 5000; 
         const totalUnblurTime = 10000;     
 
-        // Load Leaderboard from storage at startup
-        let topScore = parseInt(localStorage.getItem('cinema_top_score')) || 0;
-        let topInitials = localStorage.getItem('cinema_top_initials') || "---";
+        // Global server state cache
+        let topScore = 0;
+        let topInitials = "---";
+
+        // NEW: Pull current global leader from server file storage
+        function syncLeaderboardFromServer() {
+            fetch('/api/leaderboard')
+                .then(res => res.json())
+                .then(data => {
+                    topScore = data.score || 0;
+                    topInitials = data.initials || "---";
+                    updateStatsDisplay();
+                })
+                .catch(err => console.error("Error updating leaderboard records:", err));
+        }
 
         fetch('all_movies_with_riddles.json')
             .then(response => {
@@ -361,7 +372,7 @@
 
                 if (allMoviesData.length > 0) {
                     shuffleArray(allMoviesData);
-                    updateStatsDisplay();
+                    syncLeaderboardFromServer(); // Initialize score sync
                     loadNextMovie();
                 } else {
                     textDisplay.textContent = "Movie data file is empty.";
@@ -473,38 +484,55 @@
             });
         }
 
-        // Check if the run has hit a game over state
         function checkStrikeOutCondition() {
             if (strikes >= 3) {
-                if (score > topScore) {
-                    modalScoreText.textContent = `Final Score: ${score}`;
-                    initialsInput.value = '';
-                    initialsModal.classList.add('active');
-                    initialsInput.focus();
-                } else {
-                    score = 0;
-                    strikes = 0;
-                    updateStatsDisplay();
-                    loadNextMovie();
-                }
+                // Fetch latest file record right before evaluating down a win condition
+                fetch('/api/leaderboard')
+                    .then(res => res.json())
+                    .then(latestData => {
+                        topScore = latestData.score || 0;
+                        topInitials = latestData.initials || "---";
+
+                        if (score > topScore) {
+                            modalScoreText.textContent = `Final Score: ${score}`;
+                            initialsInput.value = '';
+                            initialsModal.classList.add('active');
+                            initialsInput.focus();
+                        } else {
+                            score = 0;
+                            strikes = 0;
+                            syncLeaderboardFromServer();
+                            loadNextMovie();
+                        }
+                    });
                 return true; 
             }
             return false;
         }
 
+        // NEW: Submit highscore changes back up to permanent host JSON file asynchronously
         submitInitialsBtn.addEventListener('click', () => {
             let initials = initialsInput.value.trim().toUpperCase() || "AAA";
-            topScore = score;
-            topInitials = initials;
             
-            localStorage.setItem('cinema_top_score', topScore);
-            localStorage.setItem('cinema_top_initials', topInitials);
-            
-            score = 0;
-            strikes = 0;
-            initialsModal.classList.remove('active');
-            updateStatsDisplay();
-            loadNextMovie();
+            const payload = { initials: initials, score: score };
+
+            fetch('/api/leaderboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                score = 0;
+                strikes = 0;
+                initialsModal.classList.remove('active');
+                syncLeaderboardFromServer();
+                loadNextMovie();
+            })
+            .catch(err => {
+                console.error("Failed storing payload record context:", err);
+                initialsModal.classList.remove('active');
+                loadNextMovie();
+            });
         });
 
         function handleGuess(selectedTitle, correctTitle, buttonElements) {
@@ -551,7 +579,6 @@
 
                 const briefPauseId = setTimeout(() => {
                     choicesBox.style.opacity = '0';
-                    // Check if game over modal needs to interrupt the loop execution
                     if (!checkStrikeOutCondition()) {
                         revealMoviePoster(correctTitle);
                     }
@@ -644,19 +671,18 @@
                 activeTimeouts.push(timeoutId);
             });
             
-            // Timeout Execution - PENALIZES PLAYER WITH A STRIKE IF UNANSWERED
             const revealId = setTimeout(() => {
                 if (!hasGuessed) {
                     hasGuessed = true;
                     potentialPoints = 0;
-                    strikes += 1; // Award strike on non-response timeout
+                    strikes += 1; 
                     
                     progressBar.style.transition = 'opacity 0.3s ease-out';
                     progressBar.style.opacity = '0';
                     potentialBoard.style.opacity = '0';
                     choicesBox.style.opacity = '0';
                     
-                    forceRevealAllAllClues = forceRevealAllClues();
+                    forceRevealAllClues();
                     updateStatsDisplay();
 
                     if (!checkStrikeOutCondition()) {
