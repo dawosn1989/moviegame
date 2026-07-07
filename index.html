@@ -44,6 +44,15 @@
             font-weight: bold;
         }
 
+        .leaderboard-link {
+            color: #00e676;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+        .leaderboard-link:hover {
+            text-decoration: underline;
+        }
+
         #score-container {
             display: flex;
             flex-direction: column;
@@ -273,7 +282,7 @@
                 <div id="score-board">Score: 0</div>
             </div>
             <div id="leaderboard-container">
-                <div id="top-score-board">Top: Loading...</div>
+                <div id="top-score-board"><a href="/leaderboard" target="_blank" class="leaderboard-link">Top: Loading...</a></div>
                 <div id="strike-board"></div>
             </div>
         </div>
@@ -333,6 +342,7 @@
         let currentMovieIndex = 0;
         let activeTimeouts = []; 
         let scoreTickerInterval = null; 
+        let fadeAudioInterval = null;
         
         let score = 0;
         let strikes = 0;
@@ -364,14 +374,9 @@
             })
             .then(data => {
                 allMoviesData = data;
-                
                 allMoviesData.forEach(movie => {
-                    if (movie && typeof movie.thumbFile === 'string') {
-                        movie.thumbFile = sanitizePath(movie.thumbFile);
-                    }
-                    if (movie && typeof movie.themeAudio === 'string') {
-                        movie.themeAudio = sanitizePath(movie.themeAudio);
-                    }
+                    if (movie && typeof movie.thumbFile === 'string') movie.thumbFile = sanitizePath(movie.thumbFile);
+                    if (movie && typeof movie.themeAudio === 'string') movie.themeAudio = sanitizePath(movie.themeAudio);
                 });
 
                 if (allMoviesData.length > 0) {
@@ -400,7 +405,6 @@
 
         function formatArrayClue(arr, propertyName = "tag") {
             if (!arr || !Array.isArray(arr) || arr.length === 0) return "";
-            
             return arr.map(item => {
                 if (item && typeof item === 'object' && item[propertyName]) return item[propertyName];
                 if (typeof item === 'string') return item;
@@ -410,7 +414,24 @@
             .join(', ');
         }
 
-        function stopThemeAudio() {
+        // NEW: Handles smooth logarithmic fade outs over 1.5 seconds instead of raw pops
+        function fadeOutThemeAudio() {
+            if (fadeAudioInterval) clearInterval(fadeAudioInterval);
+            if (themePlayer.paused) return;
+
+            fadeAudioInterval = setInterval(() => {
+                if (themePlayer.volume > 0.03) {
+                    themePlayer.volume -= 0.03;
+                } else {
+                    clearInterval(fadeAudioInterval);
+                    themePlayer.pause();
+                    themePlayer.src = "";
+                }
+            }, 50);
+        }
+
+        function stopThemeAudioImmediate() {
+            if (fadeAudioInterval) clearInterval(fadeAudioInterval);
             themePlayer.pause();
             themePlayer.src = "";
         }
@@ -419,7 +440,7 @@
             scoreBoard.textContent = `Score: ${score}`;
             potentialBoard.textContent = `Value: ${potentialPoints}`;
             strikeBoard.textContent = "❌".repeat(strikes);
-            topScoreBoard.textContent = `Top: ${topInitials} ${topScore}`;
+            topScoreBoard.innerHTML = `<a href="/leaderboard" target="_blank" class="leaderboard-link">Top: ${topInitials} ${topScore}</a>`;
         }
 
         function clearAllTimeouts() {
@@ -433,7 +454,7 @@
 
         function resetDisplay() {
             clearAllTimeouts(); 
-            stopThemeAudio();
+            stopThemeAudioImmediate();
             hasGuessed = false;
             potentialPoints = 1000;
             currentCluesTimeline = [];
@@ -479,11 +500,9 @@
                 .filter(t => t && t !== correctTitle);
             
             shuffleArray(pool);
-            
             for (let i = 0; i < 3; i++) {
                 if (pool[i]) options.push(pool[i]);
             }
-            
             shuffleArray(options); 
             return options;
         }
@@ -546,7 +565,7 @@
             if (hasGuessed) return;
             hasGuessed = true;
 
-            stopThemeAudio(); // Hard cutoff theme on any interaction activity evaluation
+            fadeOutThemeAudio(); // Smooth audio handoff on choice triggers
             progressBar.style.transition = 'none';
             progressBar.style.opacity = '0';
             potentialBoard.style.opacity = '0';
@@ -648,11 +667,10 @@
             progressBar.style.transition = `width ${totalUnblurTime}ms linear`;
             progressBar.style.width = '0%';
 
-            // Audio Activation Block
             if (movieData.themeAudio && movieData.themeAudio.trim() !== "") {
                 themePlayer.src = movieData.themeAudio;
                 themePlayer.volume = 0.4;
-                themePlayer.play().catch(e => console.log("Audio autoplay deferred until interaction:", e));
+                themePlayer.play().catch(e => console.log("Autoplay waiting for click trigger context:", e));
             }
 
             const tickRate = 50; 
@@ -691,7 +709,7 @@
                     hasGuessed = true;
                     potentialPoints = 0;
                     strikes += 1; 
-                    stopThemeAudio();
+                    fadeOutThemeAudio(); // Smooth fade layout on penalty timeouts
                     
                     progressBar.style.transition = 'opacity 0.3s ease-out';
                     progressBar.style.opacity = '0';
@@ -712,20 +730,17 @@
 
         function loadNextMovie() {
             if (!allMoviesData || allMoviesData.length === 0) return;
-
             if (currentMovieIndex >= allMoviesData.length) {
                 currentMovieIndex = 0; 
                 shuffleArray(allMoviesData); 
             }
-            
             const movieToPlay = allMoviesData[currentMovieIndex];
             currentMovieIndex++; 
-            
             runMovieSequence(movieToPlay);
         }
 
         movieThumb.onerror = function() {
-            console.warn("Failed to load image, skipping:", movieThumb.src);
+            console.warn("Failed loading target source canvas framework, skipping asset:", movieThumb.src);
             loadNextMovie();
         };
     </script>
