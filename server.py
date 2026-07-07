@@ -5,24 +5,39 @@ import os
 PORT = 8005
 LEADERBOARD_FILE = "leaderboard.json"
 
-# Ensure the leaderboard storage file exists with a default baseline
+# Initialize file as a list of scores instead of a single object
 if not os.path.exists(LEADERBOARD_FILE):
     with open(LEADERBOARD_FILE, "w") as f:
-        json.dump({"initials": "AAA", "score": 0}, f)
+        json.dump([
+            {"initials": "AAA", "score": 3000},
+            {"initials": "BBB", "score": 2000},
+            {"initials": "CCC", "score": 1000}
+        ], f, indent=4)
 
 class GameServer(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         clean_path = self.path.split('?')[0].rstrip('/')
         
-        # 1. NEW: Direct Browser URL to check the high score throne room
+        # HTML Leaderboard Page Route
         if clean_path == "/leaderboard":
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             
             with open(LEADERBOARD_FILE, "r") as f:
-                data = json.load(f)
+                scores = json.load(f)
             
+            # Dynamically build table rows for the Top 3
+            rows_html = ""
+            for idx, entry in enumerate(scores[:3], start=1):
+                rows_html += f"""
+                <tr>
+                    <td>#{idx}</td>
+                    <td>{entry.get('initials', '---')}</td>
+                    <td>{entry.get('score', 0)}</td>
+                </tr>
+                """
+
             html_page = f"""
             <!DOCTYPE html>
             <html>
@@ -32,17 +47,27 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
                     body {{ font-family: 'Segoe UI', sans-serif; background: #111; color: #fff; text-align: center; padding-top: 50px; }}
                     .box {{ background: #000; border: 2px solid #ffcc00; display: inline-block; padding: 40px; border-radius: 12px; box-shadow: 0 0 20px #ffcc0044; }}
                     h1 {{ color: #ffcc00; margin-bottom: 5px; letter-spacing: 2px; }}
-                    h2 {{ color: #00e676; font-size: 3rem; margin: 20px 0; font-family: monospace; }}
-                    p {{ color: #aaa; font-size: 1.2rem; }}
+                    p {{ color: #aaa; font-size: 1.2rem; margin-bottom: 25px; }}
+                    table {{ width: 100%; border-collapse: collapse; font-size: 1.5rem; margin: 20px 0; font-family: monospace; }}
+                    td, th {{ padding: 12px 25px; text-align: center; }}
+                    th {{ color: #ffcc00; border-bottom: 2px solid #333; }}
+                    tr:nth-child(1) td {{ color: #00e676; font-weight: bold; font-size: 1.8rem; }}
                     .btn {{ display: inline-block; margin-top: 20px; color: #ffcc00; text-decoration: none; border: 1px solid #ffcc00; padding: 8px 16px; border-radius: 4px; }}
                     .btn:hover {{ background: #ffcc00; color: #000; }}
                 </style>
             </head>
             <body>
                 <div class="box">
-                    <h1>CURRENT CHAMPION</h1>
-                    <p>All-Time High Score Record</p>
-                    <h2>{data.get('initials', '---')} - {data.get('score', 0)} pts</h2>
+                    <h1>ARCADE HALL OF FAME</h1>
+                    <p>Top 3 Dynamic High Scores</p>
+                    <table>
+                        <tr>
+                            <th>RANK</th>
+                            <th>NAME</th>
+                            <th>SCORE</th>
+                        </tr>
+                        {rows_html}
+                    </table>
                     <a class="btn" href="/">Return to Game</a>
                 </div>
             </body>
@@ -50,7 +75,7 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
             """
             self.wfile.write(html_page.encode("utf-8"))
             
-        # 2. API Endpoint to fetch the current global high score data
+        # API Endpoint to fetch scores
         elif clean_path == "/api/leaderboard":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -66,10 +91,23 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
         if clean_path == "/api/leaderboard":
             content_length = int(self.headers["Content-Length"])
             post_data = self.rfile.read(content_length)
-            new_record = json.loads(post_data.decode("utf-8"))
+            new_entry = json.loads(post_data.decode("utf-8"))
+            
+            # Load existing scores list
+            if os.path.exists(LEADERBOARD_FILE):
+                with open(LEADERBOARD_FILE, "r") as f:
+                    scores = json.load(f)
+                    if not isinstance(scores, list): scores = []
+            else:
+                scores = []
+
+            # Append the fresh entry, sort descending by score value, and keep top 10 logs
+            scores.append(new_entry)
+            scores.sort(key=lambda x: x.get('score', 0), reverse=True)
+            scores = scores[:10] 
             
             with open(LEADERBOARD_FILE, "w") as f:
-                json.dump(new_record, f, indent=4)
+                json.dump(scores, f, indent=4)
                 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

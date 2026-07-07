@@ -49,6 +49,7 @@
             text-decoration: none;
             font-size: 1rem;
         }
+        
         .leaderboard-link:hover {
             text-decoration: underline;
         }
@@ -68,7 +69,6 @@
             align-items: flex-end;
             gap: 2px;
         }
-        #top-score-board { color: #00e676; font-size: 1rem; }
         #strike-board { color: #ff4444; letter-spacing: 2px; font-size: 1.1rem; }
 
         .image-wrapper {
@@ -360,8 +360,11 @@
             fetch('/api/leaderboard')
                 .then(res => res.json())
                 .then(data => {
-                    topScore = data.score || 0;
-                    topInitials = data.initials || "---";
+                    // Read index 0 to show the overall champion in the game header banner
+                    if (Array.isArray(data) && data.length > 0) {
+                        topScore = data[0].score || 0;
+                        topInitials = data[0].initials || "---";
+                    }
                     updateStatsDisplay();
                 })
                 .catch(err => console.error("Error updating leaderboard records:", err));
@@ -414,7 +417,7 @@
             .join(', ');
         }
 
-        // NEW: Handles smooth logarithmic fade outs over 1.5 seconds instead of raw pops
+        // Handles smooth logarithmic fade outs over ~1.5 seconds instead of raw pops
         function fadeOutThemeAudio() {
             if (fadeAudioInterval) clearInterval(fadeAudioInterval);
             if (themePlayer.paused) return;
@@ -518,10 +521,12 @@
                 fetch('/api/leaderboard')
                     .then(res => res.json())
                     .then(latestData => {
-                        topScore = latestData.score || 0;
-                        topInitials = latestData.initials || "---";
+                        const scoresList = Array.isArray(latestData) ? latestData : [];
+                        
+                        // Qualify if table has free space OR score beats the 3rd place score
+                        const qualifiesForLeaderboard = scoresList.length < 3 || score > (scoresList[2]?.score || 0);
 
-                        if (score > topScore) {
+                        if (qualifiesForLeaderboard) {
                             modalScoreText.textContent = `Final Score: ${score}`;
                             initialsInput.value = '';
                             initialsModal.classList.add('active');
@@ -667,6 +672,7 @@
             progressBar.style.transition = `width ${totalUnblurTime}ms linear`;
             progressBar.style.width = '0%';
 
+            // Audio Activation Block
             if (movieData.themeAudio && movieData.themeAudio.trim() !== "") {
                 themePlayer.src = movieData.themeAudio;
                 themePlayer.volume = 0.4;
