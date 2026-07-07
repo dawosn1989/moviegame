@@ -344,7 +344,7 @@
         let topInitials = "---";
 
         function syncLeaderboardFromServer() {
-            fetch('http://192.168.68.85:8005/api/leaderboard')
+            fetch('/api/leaderboard')
                 .then(res => res.json())
                 .then(data => {
                     topScore = data.score || 0;
@@ -484,7 +484,7 @@
 
         function checkStrikeOutCondition() {
             if (strikes >= 3) {
-                fetch('http://192.168.68.85:8005/api/leaderboard')
+                fetch('/api/leaderboard')
                     .then(res => res.json())
                     .then(latestData => {
                         topScore = latestData.score || 0;
@@ -511,7 +511,7 @@
             let initials = initialsInput.value.trim().toUpperCase() || "AAA";
             const payload = { initials: initials, score: score };
 
-            fetch('http://192.168.68.85:8005/api/leaderboard', {
+            fetch('/api/leaderboard', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
