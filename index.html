@@ -255,6 +255,8 @@
 </head>
 <body>
 
+    <audio id="theme-player" loop></audio>
+
     <div class="game-container">
         <div id="initials-modal" class="modal-overlay">
             <div class="modal-content">
@@ -315,6 +317,7 @@
         const initialsInput = document.getElementById('initials-input');
         const modalScoreText = document.getElementById('modal-score-text');
         const submitInitialsBtn = document.getElementById('submit-initials-btn');
+        const themePlayer = document.getElementById('theme-player');
         
         const clueElements = {
             year: document.getElementById('clue-year'),
@@ -366,6 +369,9 @@
                     if (movie && typeof movie.thumbFile === 'string') {
                         movie.thumbFile = sanitizePath(movie.thumbFile);
                     }
+                    if (movie && typeof movie.themeAudio === 'string') {
+                        movie.themeAudio = sanitizePath(movie.themeAudio);
+                    }
                 });
 
                 if (allMoviesData.length > 0) {
@@ -373,12 +379,12 @@
                     syncLeaderboardFromServer(); 
                     loadNextMovie();
                 } else {
-                    textDisplay.textContent = "Movie data file is empty.";
+                    textDisplay.textContent = "Data file is empty.";
                 }
             })
             .catch(error => {
                 console.error("Error loading JSON data:", error);
-                textDisplay.textContent = "Error: JSON failed to load. Make sure the container server is up.";
+                textDisplay.textContent = "Error: JSON failed to load.";
             });
 
         function sanitizePath(path) {
@@ -404,6 +410,11 @@
             .join(', ');
         }
 
+        function stopThemeAudio() {
+            themePlayer.pause();
+            themePlayer.src = "";
+        }
+
         function updateStatsDisplay() {
             scoreBoard.textContent = `Score: ${score}`;
             potentialBoard.textContent = `Value: ${potentialPoints}`;
@@ -422,6 +433,7 @@
 
         function resetDisplay() {
             clearAllTimeouts(); 
+            stopThemeAudio();
             hasGuessed = false;
             potentialPoints = 1000;
             currentCluesTimeline = [];
@@ -524,7 +536,7 @@
                 loadNextMovie();
             })
             .catch(err => {
-                console.error("Failed storing payload record context:", err);
+                console.error("Failed storing record entry:", err);
                 initialsModal.classList.remove('active');
                 loadNextMovie();
             });
@@ -534,6 +546,7 @@
             if (hasGuessed) return;
             hasGuessed = true;
 
+            stopThemeAudio(); // Hard cutoff theme on any interaction activity evaluation
             progressBar.style.transition = 'none';
             progressBar.style.opacity = '0';
             potentialBoard.style.opacity = '0';
@@ -635,6 +648,13 @@
             progressBar.style.transition = `width ${totalUnblurTime}ms linear`;
             progressBar.style.width = '0%';
 
+            // Audio Activation Block
+            if (movieData.themeAudio && movieData.themeAudio.trim() !== "") {
+                themePlayer.src = movieData.themeAudio;
+                themePlayer.volume = 0.4;
+                themePlayer.play().catch(e => console.log("Audio autoplay deferred until interaction:", e));
+            }
+
             const tickRate = 50; 
             const totalTicks = totalUnblurTime / tickRate; 
             const pointsPerTick = 1000 / totalTicks; 
@@ -671,6 +691,7 @@
                     hasGuessed = true;
                     potentialPoints = 0;
                     strikes += 1; 
+                    stopThemeAudio();
                     
                     progressBar.style.transition = 'opacity 0.3s ease-out';
                     progressBar.style.opacity = '0';
