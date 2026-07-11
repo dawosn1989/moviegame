@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cinema Riddle Arcade</title>
     <style>
         body {
@@ -13,25 +13,32 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
+            min-height: 100dvh; /* Uses dynamic viewport height to account for mobile browser bars */
+            overflow: hidden; /* Prevents rubber-band scrolling */
         }
 
         .game-container {
             position: relative;
-            width: 95%;
+            width: 100%;
             max-width: 500px;
-            height: 850px;
+            height: 100dvh; /* Takes full screen on mobile */
+            max-height: 900px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            align-items: center;
             background-color: #000;
-            border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-            overflow: hidden;
-            padding: 20px;
+            padding: 15px;
             box-sizing: border-box;
+        }
+
+        /* Adds rounded corners only on larger desktop/tablet screens */
+        @media (min-width: 520px) {
+            .game-container {
+                height: 95vh;
+                border-radius: 12px;
+                padding: 20px;
+            }
         }
 
         .game-header {
@@ -42,6 +49,7 @@
             margin-bottom: 10px;
             font-size: 1.1rem;
             font-weight: bold;
+            flex-shrink: 0; /* Prevents header from squishing */
         }
 
         .leaderboard-link { color: #00e676; text-decoration: none; font-size: 1rem; }
@@ -63,7 +71,9 @@
         .image-wrapper {
             position: relative;
             width: 100%;
-            height: 380px;
+            flex: 1 1 auto; /* MAGIC FIX: Allows poster to shrink/grow based on screen size */
+            min-height: 150px; 
+            max-height: 380px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -83,16 +93,17 @@
         }
 
         #text-display {
-            font-size: 1.6rem;
+            font-size: 1.4rem;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             color: #ffcc00;
             min-height: 2.2em;
             display: flex;
             align-items: center;
             justify-content: center;
             width: 100%;
+            flex-shrink: 0;
         }
 
         .clues-container {
@@ -100,35 +111,48 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: flex-end; /* Pushes clues down if space is tight */
             gap: 5px;
-            min-height: 200px;
+            flex: 0 1 auto;
+            min-height: 140px; /* Lowered to give buttons more room */
+            margin-bottom: 10px;
         }
 
         .clues-container p {
-            font-size: 0.95rem; margin: 0; padding: 4px 12px;
+            font-size: 0.9rem; margin: 0; padding: 4px 12px;
             background: rgba(255, 255, 255, 0.05); border-radius: 6px;
-            width: 85%; text-align: center; opacity: 0;
+            width: 90%; text-align: center; opacity: 0;
             transform: translateY(10px);
             transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
         }
         .clues-container p.visible { opacity: 1; transform: translateY(0); }
 
         .choices-container {
-            width: 100%; display: grid; grid-template-columns: 1fr 1fr;
-            gap: 10px; margin-top: 15px; min-height: 90px; transition: opacity 0.2s ease;
+            width: 100%; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr;
+            gap: 10px; 
+            flex-shrink: 0; /* Ensures buttons never get squished */
+            transition: opacity 0.2s ease;
         }
 
         .choice-btn {
             background-color: #222; color: #fff; border: 2px solid #444;
-            padding: 10px; font-size: 0.9rem; font-weight: bold; border-radius: 8px;
+            padding: 12px 10px; font-size: 0.9rem; font-weight: bold; border-radius: 8px;
             cursor: pointer; transition: all 0.2s ease; text-align: center;
             display: flex; align-items: center; justify-content: center; overflow: hidden;
+            /* Prevents touch zoom on mobile */
+            touch-action: manipulation;
         }
         .choice-btn:hover:not(:disabled) { background-color: #333; border-color: #ffcc00; }
         .choice-btn.correct { background-color: #1b5e20 !important; border-color: #4caf50 !important; }
         .choice-btn.wrong { background-color: #b71c1c !important; border-color: #f44336 !important; opacity: 0.6; }
 
-        .footer-navigation { width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 15px; }
+        .footer-navigation { 
+            width: 100%; display: flex; flex-direction: column; 
+            align-items: center; margin-top: 15px; flex-shrink: 0; 
+        }
+        
         .progress-wrapper { width: 100%; height: 6px; background-color: #222; border-radius: 4px; overflow: hidden; }
         #progress-bar { width: 100%; height: 100%; background-color: #ffcc00; }
         #potential-board { font-size: 0.9rem; color: #aaa; margin-top: 6px; font-weight: bold; letter-spacing: 0.5px; transition: opacity 0.2s ease; }
@@ -142,6 +166,7 @@
         .modal-content {
             background: #222; padding: 30px; border-radius: 12px; text-align: center;
             border: 2px solid #ffcc00; box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+            max-width: 85%;
         }
         .modal-content h2 { margin-top: 0; color: #ffcc00; letter-spacing: 2px;}
         .modal-content input {
@@ -268,14 +293,12 @@
             directors: document.getElementById('clue-directors')
         };
 
-        // NEW: Database Deck Separation
         let moviesList = [];
         let showsList = [];
         let movieIndex = 0;
         let showIndex = 0;
         
-        // NEW: Pacing Controls
-        const TV_SHOW_FREQUENCY = 7; // Change this to 25 if you want them extremely rare!
+        const TV_SHOW_FREQUENCY = 7; 
         let totalRoundsPlayed = 1; 
 
         let activeTimeouts = []; 
@@ -324,7 +347,6 @@
                     if (item && typeof item.thumbFile === 'string') item.thumbFile = sanitizePath(item.thumbFile);
                     if (item && typeof item.themeAudio === 'string') item.themeAudio = sanitizePath(item.themeAudio);
                     
-                    // Physically sort the database into two decks on load
                     if (isTVShow(item)) {
                         showsList.push(item);
                     } else {
@@ -349,7 +371,7 @@
         startGameBtn.addEventListener('click', () => {
             startOverlay.classList.remove('active');
             isSystemActive = true;
-            totalRoundsPlayed = 1; // Reset pacing
+            totalRoundsPlayed = 1; 
             if(bgmPlayer.paused) bgmPlayer.play().catch(e => console.log("BGM Init Blocked:", e));
             loadNextMovie();
         });
@@ -381,7 +403,6 @@
             let options = [correctTitle];
             let currentIsTV = isTVShow(currentData);
 
-            // Directly pull from the pre-sorted array for better performance
             let poolSource = currentIsTV ? showsList : moviesList;
             
             let pool = poolSource
@@ -499,7 +520,7 @@
                         } else {
                             score = 0;
                             strikes = 0;
-                            totalRoundsPlayed = 1; // Reset pacing for next player
+                            totalRoundsPlayed = 1; 
                             syncLeaderboardFromServer();
                             loadNextMovie();
                         }
@@ -521,7 +542,7 @@
             .then(() => {
                 score = 0;
                 strikes = 0;
-                totalRoundsPlayed = 1; // Reset pacing for next player
+                totalRoundsPlayed = 1; 
                 initialsModal.classList.remove('active');
                 syncLeaderboardFromServer();
                 loadNextMovie();
@@ -688,14 +709,11 @@
             activeTimeouts.push(revealId);
         }
 
-        // NEW: Load logic handles pacing and guaranteed TV show injection
         function loadNextMovie() {
             if (moviesList.length === 0 && showsList.length === 0) return;
 
-            // Check if this round hits our TV frequency multiplier
             let isTvRound = (totalRoundsPlayed % TV_SHOW_FREQUENCY === 0) && (showsList.length > 0);
             
-            // Loop arrays if we run out of fresh cards
             if (isTvRound && showIndex >= showsList.length) {
                 showIndex = 0; 
                 shuffleArray(showsList);
