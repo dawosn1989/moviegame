@@ -443,7 +443,7 @@
                     clearInterval(fadeAudioInterval);
                     themePlayer.pause();
                     themePlayer.src = "";
-                    if (isSystemActive && bgmPlayer.paused) bgmPlayer.play(); 
+                    if (isSystemActive && bgmPlayer.paused) bgmPlayer.play().catch(e => console.warn("Audio play error:", e)); 
                 }
             }, 50);
         }
@@ -452,7 +452,7 @@
             if (fadeAudioInterval) clearInterval(fadeAudioInterval);
             themePlayer.pause();
             themePlayer.src = "";
-            if (isSystemActive && bgmPlayer.paused) bgmPlayer.play();
+            if (isSystemActive && bgmPlayer.paused) bgmPlayer.play().catch(e => console.warn("Audio play error:", e));
         }
 
         function updateStatsDisplay() {
@@ -593,7 +593,7 @@
 
             if (selectedTitle === correctTitle) {
                 sfxCorrect.currentTime = 0;
-                sfxCorrect.play();
+                sfxCorrect.play().catch(e => console.warn("Audio play error:", e));
                 score += potentialPoints; 
                 buttonElements.forEach(btn => { if (btn.textContent === correctTitle) btn.classList.add('correct'); });
                 
@@ -608,7 +608,7 @@
 
             } else {
                 sfxWrong.currentTime = 0;
-                sfxWrong.play();
+                sfxWrong.play().catch(e => console.warn("Audio play error:", e));
                 strikes += 1;
                 potentialPoints = 0; 
                 buttonElements.forEach(btn => {
@@ -714,10 +714,55 @@
                     strikes += 1; 
                     
                     sfxWrong.currentTime = 0;
-                    sfxWrong.play();
+                    sfxWrong.play().catch(e => console.warn("Audio play error:", e));
                     fadeOutThemeAudio(); 
                     
                     progressBar.style.transition = 'opacity 0.3s ease-out';
                     progressBar.style.opacity = '0';
                     potentialBoard.style.opacity = '0';
-                    choicesBox.style.opacity = '
+                    choicesBox.style.opacity = '0';
+                    
+                    forceRevealAllClues();
+                    updateStatsDisplay();
+
+                    if (!checkStrikeOutCondition()) revealMoviePoster(correctTitle);
+                }
+            }, totalUnblurTime);
+            
+            activeTimeouts.push(revealId);
+        }
+
+        function loadNextMovie() {
+            if (moviesList.length === 0 && showsList.length === 0) return;
+
+            let isTvRound = (totalRoundsPlayed % TV_SHOW_FREQUENCY === 0) && (showsList.length > 0);
+            
+            if (isTvRound && showIndex >= showsList.length) {
+                showIndex = 0; 
+                shuffleArray(showsList);
+            }
+            if (!isTvRound && movieIndex >= moviesList.length) {
+                movieIndex = 0; 
+                shuffleArray(moviesList);
+            }
+
+            let dataToPlay;
+            if (isTvRound || moviesList.length === 0) {
+                dataToPlay = showsList[showIndex];
+                showIndex++;
+            } else {
+                dataToPlay = moviesList[movieIndex];
+                movieIndex++;
+            }
+            
+            totalRoundsPlayed++;
+            runMovieSequence(dataToPlay);
+        }
+
+        movieThumb.onerror = function() {
+            console.warn("Skipping broken asset:", movieThumb.src);
+            loadNextMovie();
+        };
+    </script>
+</body>
+</html>
