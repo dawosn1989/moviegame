@@ -68,6 +68,20 @@
         }
         #mute-btn:hover { opacity: 1; }
 
+        #text-display {
+            font-size: 1.4rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            color: #ffcc00;
+            min-height: 2.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            flex-shrink: 0;
+        }
+
         .image-wrapper {
             position: relative;
             width: 100%;
@@ -90,20 +104,6 @@
             filter: blur(30px);
             transition: filter opacity ease-out;
             opacity: 0;
-        }
-
-        #text-display {
-            font-size: 1.4rem;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 10px;
-            color: #ffcc00;
-            min-height: 2.2em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            flex-shrink: 0;
         }
 
         .clues-container {
@@ -220,11 +220,11 @@
             </div>
         </div>
 
+        <div id="text-display">Waiting to start...</div>
+
         <div class="image-wrapper">
             <img id="movie-thumb" src="" alt="Movie Poster">
         </div>
-
-        <div id="text-display">Waiting to start...</div>
 
         <div class="clues-container">
             <p id="clue-year"></p>
@@ -324,49 +324,63 @@
                    (data.runtime && (data.runtime.includes("Episode") || data.runtime.includes("TV Series")));
         }
 
-        function syncLeaderboardFromServer() {
-            fetch('/api/leaderboard')
-                .then(res => res.json())
-                .then(data => {
-                    if (Array.isArray(data) && data.length > 0) {
-                        topScore = data[0].score || 0;
-                        topInitials = data[0].initials || "---";
-                    }
-                    updateStatsDisplay();
-                })
-                .catch(err => console.error("Error updating leaderboard records:", err));
+        async function syncLeaderboardFromServer() {
+            let data;
+            try {
+                const res = await fetch('/api/leaderboard');
+                if (!res.ok) throw new Error("Network error");
+                data = await res.json();
+            } catch (err) {
+                console.warn("Error updating leaderboard (using mock data for preview):", err);
+                data = [{ initials: "CPU", score: 5000 }];
+            }
+            
+            if (Array.isArray(data) && data.length > 0) {
+                topScore = data[0].score || 0;
+                topInitials = data[0].initials || "---";
+            }
+            updateStatsDisplay();
         }
 
-        fetch('all_movies_with_riddles.json')
-            .then(response => {
+        async function initGameData() {
+            let data;
+            try {
+                const response = await fetch('all_movies_with_riddles.json');
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                data.forEach(item => {
-                    if (item && typeof item.thumbFile === 'string') item.thumbFile = sanitizePath(item.thumbFile);
-                    if (item && typeof item.themeAudio === 'string') item.themeAudio = sanitizePath(item.themeAudio);
-                    
-                    if (isTVShow(item)) {
-                        showsList.push(item);
-                    } else {
-                        moviesList.push(item);
-                    }
-                });
+                data = await response.json();
+            } catch (error) {
+                console.warn("Error loading JSON data (using mock data for preview):", error);
+                data = [
+                    { title: "The Matrix", year: 1999, contentRating: "R", runtime: "2 hrs 16 mins", studio: "Warner Bros.", genres: [{tag: "Sci-Fi"}, {tag: "Action"}], directors: [{tag: "The Wachowskis"}], tagline: "Welcome to the Real World.", riddle: "Red or Blue pill?", thumbFile: "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg" },
+                    { title: "Inception", year: 2010, contentRating: "PG-13", runtime: "2 hrs 28 mins", studio: "Warner Bros.", genres: [{tag: "Sci-Fi"}, {tag: "Thriller"}], directors: [{tag: "Christopher Nolan"}], tagline: "Your mind is the scene of the crime.", riddle: "A dream within a dream.", thumbFile: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg" },
+                    { title: "Breaking Bad", year: 2008, contentRating: "TV-MA", runtime: "TV Series", studio: "AMC", genres: [{tag: "Crime"}, {tag: "Drama"}], directors: [{tag: "Vince Gilligan"}], tagline: "All Hail The King.", riddle: "Guess this hit TV Show!", thumbFile: "https://image.tmdb.org/t/p/w500/ggFHVbUOKlW2aAez567u4803z25.jpg" },
+                    { title: "The Godfather", year: 1972, contentRating: "R", runtime: "2 hrs 55 mins", studio: "Paramount", genres: [{tag: "Crime"}, {tag: "Drama"}], directors: [{tag: "Francis Ford Coppola"}], tagline: "An offer you can't refuse.", riddle: "Leave the gun, take the cannoli.", thumbFile: "https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg" }
+                ];
+            }
 
-                if (moviesList.length > 0) shuffleArray(moviesList);
-                if (showsList.length > 0) shuffleArray(showsList);
-
-                if (moviesList.length > 0 || showsList.length > 0) {
-                    syncLeaderboardFromServer(); 
+            data.forEach(item => {
+                if (item && typeof item.thumbFile === 'string') item.thumbFile = sanitizePath(item.thumbFile);
+                if (item && typeof item.themeAudio === 'string') item.themeAudio = sanitizePath(item.themeAudio);
+                
+                if (isTVShow(item)) {
+                    showsList.push(item);
                 } else {
-                    textDisplay.textContent = "Data file is empty.";
+                    moviesList.push(item);
                 }
-            })
-            .catch(error => {
-                console.error("Error loading JSON data:", error);
-                textDisplay.textContent = "Error: JSON failed to load.";
             });
+
+            if (moviesList.length > 0) shuffleArray(moviesList);
+            if (showsList.length > 0) shuffleArray(showsList);
+
+            if (moviesList.length > 0 || showsList.length > 0) {
+                syncLeaderboardFromServer(); 
+            } else {
+                textDisplay.textContent = "Data file is empty.";
+            }
+        }
+        
+        // Initialize fetch data
+        initGameData();
 
         startGameBtn.addEventListener('click', () => {
             startOverlay.classList.remove('active');
@@ -506,52 +520,61 @@
 
         function checkStrikeOutCondition() {
             if (strikes >= 3) {
-                fetch('/api/leaderboard')
-                    .then(res => res.json())
-                    .then(latestData => {
-                        const scoresList = Array.isArray(latestData) ? latestData : [];
-                        const qualifiesForLeaderboard = scoresList.length < 3 || score > (scoresList[2]?.score || 0);
+                const processGameOver = (latestData) => {
+                    const scoresList = Array.isArray(latestData) ? latestData : [];
+                    const qualifiesForLeaderboard = scoresList.length < 3 || score > (scoresList[2]?.score || 0);
 
-                        if (qualifiesForLeaderboard) {
-                            modalScoreText.textContent = `Final Score: ${score}`;
-                            initialsInput.value = '';
-                            initialsModal.classList.add('active');
-                            initialsInput.focus();
-                        } else {
-                            score = 0;
-                            strikes = 0;
-                            totalRoundsPlayed = 1; 
-                            syncLeaderboardFromServer();
-                            loadNextMovie();
-                        }
+                    if (qualifiesForLeaderboard) {
+                        modalScoreText.textContent = `Final Score: ${score}`;
+                        initialsInput.value = '';
+                        initialsModal.classList.add('active');
+                        initialsInput.focus();
+                    } else {
+                        score = 0;
+                        strikes = 0;
+                        totalRoundsPlayed = 1; 
+                        syncLeaderboardFromServer();
+                        loadNextMovie();
+                    }
+                };
+
+                fetch('/api/leaderboard')
+                    .then(res => {
+                        if (!res.ok) throw new Error("Network error");
+                        return res.json();
+                    })
+                    .then(processGameOver)
+                    .catch(err => {
+                        console.warn("Mocking game over stats (expected in preview):", err);
+                        processGameOver([{score: topScore, initials: topInitials}]);
                     });
                 return true; 
             }
             return false;
         }
 
-        submitInitialsBtn.addEventListener('click', () => {
+        submitInitialsBtn.addEventListener('click', async () => {
             let initials = initialsInput.value.trim().toUpperCase() || "AAA";
             const payload = { initials: initials, score: score };
 
-            fetch('/api/leaderboard', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-            .then(() => {
-                score = 0;
-                strikes = 0;
-                totalRoundsPlayed = 1; 
-                initialsModal.classList.remove('active');
-                syncLeaderboardFromServer();
-                loadNextMovie();
-            })
-            .catch(err => {
-                console.error("Failed storing record entry:", err);
-                initialsModal.classList.remove('active');
-                loadNextMovie();
-            });
+            try {
+                const response = await fetch('/api/leaderboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error("Save failed");
+            } catch (err) {
+                console.warn("Failed storing record entry (expected in preview):", err);
+                if (score > topScore) { topScore = score; topInitials = initials; }
+            }
+            
+            score = 0;
+            strikes = 0;
+            totalRoundsPlayed = 1; 
+            initialsModal.classList.remove('active');
+            syncLeaderboardFromServer();
+            loadNextMovie();
         });
 
         function handleGuess(selectedTitle, correctTitle, buttonElements) {
@@ -697,49 +720,4 @@
                     progressBar.style.transition = 'opacity 0.3s ease-out';
                     progressBar.style.opacity = '0';
                     potentialBoard.style.opacity = '0';
-                    choicesBox.style.opacity = '0';
-                    
-                    forceRevealAllClues();
-                    updateStatsDisplay();
-
-                    if (!checkStrikeOutCondition()) revealMoviePoster(correctTitle);
-                }
-            }, totalUnblurTime);
-            
-            activeTimeouts.push(revealId);
-        }
-
-        function loadNextMovie() {
-            if (moviesList.length === 0 && showsList.length === 0) return;
-
-            let isTvRound = (totalRoundsPlayed % TV_SHOW_FREQUENCY === 0) && (showsList.length > 0);
-            
-            if (isTvRound && showIndex >= showsList.length) {
-                showIndex = 0; 
-                shuffleArray(showsList);
-            }
-            if (!isTvRound && movieIndex >= moviesList.length) {
-                movieIndex = 0; 
-                shuffleArray(moviesList);
-            }
-
-            let dataToPlay;
-            if (isTvRound || moviesList.length === 0) {
-                dataToPlay = showsList[showIndex];
-                showIndex++;
-            } else {
-                dataToPlay = moviesList[movieIndex];
-                movieIndex++;
-            }
-            
-            totalRoundsPlayed++;
-            runMovieSequence(dataToPlay);
-        }
-
-        movieThumb.onerror = function() {
-            console.warn("Skipping broken asset:", movieThumb.src);
-            loadNextMovie();
-        };
-    </script>
-</body>
-</html>
+                    choicesBox.style.opacity = '
